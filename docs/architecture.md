@@ -1,6 +1,6 @@
 # Architecture
 
-![Pre-Flight architecture](architecture.png)
+![Architecture](architecture.png)
 
 Five stages, left to right, with the loop closing along the bottom. The same flow is below as
 Mermaid source so it is readable as text, diffable in review, and editable without a drawing

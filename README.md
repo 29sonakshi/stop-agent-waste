@@ -1,4 +1,4 @@
-# Pre-Flight: stopping silent AI-agent waste in food-delivery operations
+# Stopping silent AI-agent waste in food-delivery operations using AI Gateway OTel spans
 
 **Tokens burned. Time lost. Nothing logged.**
 
@@ -71,7 +71,7 @@ comparison *before dispatch* turns detection into prevention.
 
 ## Architecture
 
-![Pre-Flight architecture](docs/architecture.png)
+![Architecture](docs/architecture.png)
 
 
 Read it left to right. The red arrow along the bottom is the point: the traces these agents
@@ -128,7 +128,7 @@ to flag something it has never seen.
 
 | | AUC |
 |---|---|
-| **Pre-Flight model, mean over folds** | **0.825** |
+| **This model, mean over folds** | **0.825** |
 | Hand-written rule baseline | 0.604 |
 | Error-log baseline | **0.000**, because there are no errors to key on |
 | Worst single fold | **0.336**, below random. See limitations |

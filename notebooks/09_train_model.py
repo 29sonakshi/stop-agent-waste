@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # 09: Pre-flight tool-call risk model
+# MAGIC # 09: tool-call risk model, scored before dispatch
 # MAGIC
 # MAGIC Trains the model that sits in the agent's path and decides, **before** a tool call is
 # MAGIC dispatched, whether it will trigger a recovery loop: returning `coerce` / `warn` / `allow`.
