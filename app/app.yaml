@@ -1,0 +1,7 @@
+command: ["streamlit", "run", "app.py"]
+env:
+  # Resolved from the app's declared resources -- never hardcode endpoint names here.
+  - name: RISK_ENDPOINT
+    valueFrom: risk-endpoint
+  - name: LLM_ENDPOINT
+    valueFrom: llm-endpoint

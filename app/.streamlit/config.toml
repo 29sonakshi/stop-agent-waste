@@ -1,0 +1,14 @@
+# Tiffin brand theme. Warm amber primary reads as a consumer delivery brand;
+# ink-on-off-white keeps the decision timeline legible on a projector.
+[theme]
+primaryColor = "#E8590C"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F6F4F1"
+textColor = "#1A1A1A"
+font = "sans serif"
+
+[client]
+toolbarMode = "minimal"
+
+[server]
+runOnSave = false
