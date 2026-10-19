@@ -1,6 +1,6 @@
-# Evidence 4 — Unity Catalog governance
+# Evidence 4: Unity Catalog governance
 
-_Executed against `main.tiffin_agent_waste` on Databricks (e2-dogfood) — 2026-10-19 21:08 UTC. Every table below is real query output, not illustrative._
+_Executed against `main.tiffin_agent_waste` on Databricks (e2-dogfood), 2026-10-19 21:08 UTC. Every table below is real query output, not illustrative._
 
 One governance plane over raw spans, pipeline tables, the model, and the serving endpoint.
 
@@ -17,9 +17,9 @@ GROUP BY 1,2 ORDER BY 1,2 LIMIT 30
 
 **QUERY FAILED:** `{"error_code": "BAD_REQUEST", "message": "[UNRESOLVED_COLUMN.WITH_SUGGESTION] A column, variable, or function parameter with name `target_table_schema_name` cannot be resolved. Did you mean one of the following? [`target_table_schema`, `target_table_full_name`, `target_table_name`, `target_table_cat`
 
-### Billing attribution — what this solution costs to run
+### Billing attribution: what this solution costs to run
 
-Cost is itself governed and queryable — the same system tables that prove the pipeline ran also price it.
+Cost is itself governed and queryable: the same system tables that prove the pipeline ran also price it.
 
 ```sql
 SELECT billing_origin_product, sku_name,
@@ -43,7 +43,7 @@ _3 row(s)_
 
 ### Table lineage captured by Unity Catalog
 
-UC records the pipeline's provenance automatically — no manual documentation.
+UC records the pipeline's provenance automatically, with no manual documentation.
 
 ```sql
 SELECT source_table_full_name, target_table_full_name, count(*) AS lineage_events FROM system.access.table_lineage WHERE target_table_full_name LIKE 'main.tiffin_agent_waste.%' AND source_table_full_name IS NOT NULL AND event_date >= current_date() - INTERVAL 30 DAYS GROUP BY 1,2 ORDER BY 1,2 LIMIT 40

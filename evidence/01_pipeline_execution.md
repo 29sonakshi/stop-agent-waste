@@ -1,6 +1,6 @@
-# Evidence 1 — the Lakeflow pipeline ran and produced governed tables
+# Evidence 1: the Lakeflow pipeline ran and produced governed tables
 
-_Executed against `main.tiffin_agent_waste` on Databricks (e2-dogfood) — 2026-10-19 21:08 UTC. Every table below is real query output, not illustrative._
+_Executed against `main.tiffin_agent_waste` on Databricks (e2-dogfood), 2026-10-19 21:08 UTC. Every table below is real query output, not illustrative._
 
 The pipeline is 8 SQL files (`pipeline/`) running as a Lakeflow Spark Declarative Pipeline: bronze streaming tables from raw OTel spans, silver per-call tables, gold aggregates. Below: every table it created, with live row counts.
 

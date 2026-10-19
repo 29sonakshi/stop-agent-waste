@@ -1,5 +1,5 @@
 # Databricks notebook source
-# DBTITLE 1,03_validate_data — the data quality gate
+# DBTITLE 1,03_validate_data: the data quality gate
 # 03_validate_data.py
 #
 # Verifies the generated data is actually correct before any pipeline is built on it.

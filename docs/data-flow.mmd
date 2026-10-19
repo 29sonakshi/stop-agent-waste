@@ -1,0 +1,54 @@
+flowchart TB
+  classDef raw    fill:#F7F6F3,stroke:#D8D3CC,color:#1B3139
+  classDef bronze fill:#FDF3E7,stroke:#B45309,color:#1B3139
+  classDef silver fill:#F1F5F9,stroke:#64748B,color:#1B3139
+  classDef gold   fill:#EAF4EF,stroke:#00A972,stroke-width:2px,color:#1B3139
+  classDef out    fill:#FFFFFF,stroke:#2272B4,stroke-width:2px,color:#1B3139
+
+  R["raw_otel_spans<br/>2.6M AI Gateway spans · VARIANT"]:::raw
+
+  subgraph BR["BRONZE &nbsp; flatten and reference"]
+    direction LR
+    B1["bronze_spans<br/>streaming table"]:::bronze
+    B2["bronze_tool_catalog<br/>declared inputSchema"]:::bronze
+    B3["bronze_bug_registry<br/>seeded failure modes"]:::bronze
+    B4["bronze_model_pricing<br/>token prices"]:::bronze
+  end
+
+  subgraph SI["SILVER &nbsp; one row per tool call, labelled"]
+    direction LR
+    S1["tool_calls_silver<br/>args sent vs declared schema<br/>mismatch_class · shape_mismatch"]:::silver
+    S2["llm_turns_silver<br/>tokens per turn"]:::silver
+    S3["tool_recovery_silver<br/>retry signatures"]:::silver
+    S4["sessions_silver"]:::silver
+  end
+
+  subgraph GO["GOLD &nbsp; money and features"]
+    direction LR
+    G1["agent_waste_gold<br/>spend and waste per agent"]:::gold
+    G2["tool_waste_gold<br/>waste per tool server"]:::gold
+    G3["call_risk_features_gold<br/>the training set"]:::gold
+    G4["fix_queue<br/>ranked by dollars"]:::gold
+  end
+
+  M["MLflow model<br/>tool_call_risk"]:::out
+  P["Lakebase Postgres<br/>operational serving"]:::out
+  N["Genie space<br/>NL analytics"]:::out
+
+  R --> B1
+  B1 --> S1
+  B2 --> S1
+  B3 --> S1
+  B1 --> S2
+  S1 --> S3
+  S2 --> S4
+  S1 --> G2
+  S3 --> G2
+  S2 --> G1
+  B4 --> G1
+  S1 --> G3
+  G2 --> G4
+  G3 --> M
+  G4 --> P
+  G1 --> N
+  G2 --> N

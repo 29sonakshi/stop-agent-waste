@@ -1,15 +1,15 @@
-# Evidence 6 — live calls against the served model
+# Evidence 6: live calls against the served model
 
 _Real responses from the Model Serving endpoint `tiffin-tool-call-risk`
 (model `main.tiffin_agent_waste.tool_call_risk` v1) on e2-dogfood, 2026-10-19 21:11 UTC._
 
-The model sees **seven fields and no natural language** — tool server, tool name, the argument
+The model sees **seven fields and no natural language**: tool server, tool name, the argument
 JSON, agent id, turn index, tokens spent so far, and how many times this tool has already been
 called this session. It never sees the user's question. That is deliberate: the signal is in the
 shape of the call, not in the prose around it.
 
 
-### The live demo case — v2 pagination token the server will reject
+### The live demo case: v2 pagination token the server will reject
 
 **Request**
 ```json
@@ -63,7 +63,7 @@ shape of the call, not in the prose around it.
 }
 ```
 
-### Enum in the wrong case — server declares ACTIVE/PAUSED/SUSPENDED
+### Enum in the wrong case: server declares ACTIVE/PAUSED/SUSPENDED
 
 **Request**
 ```json
@@ -144,7 +144,7 @@ shape of the call, not in the prose around it.
 }
 ```
 
-### Same malformed call, 4th retry — the model sees the retry context
+### Same malformed call, 4th retry: the model sees the retry context
 
 **Request**
 ```json
@@ -182,6 +182,6 @@ shape of the call, not in the prose around it.
 | `get_addresses` | **allow** | 0.0 | none |  | 327 ms |
 | `list_deliveries` | **coerce** | 0.6299 | token_version | page_token | 318 ms |
 
-Latency across 6 calls: min 306 ms, max 385 ms, mean 332 ms — the guard sits in the agent's critical path, so this has to stay well inside a single turn's budget.
+Latency across 6 calls: min 306 ms, max 385 ms, mean 332 ms. The guard sits in the agent's critical path, so this has to stay well inside a single turn's budget.
 
 **Fail-open contract.** If this endpoint is unreachable or slow, `agent.py` catches the exception, emits a `guard_error` event and lets the tool call proceed. A guard that takes the agent down is worse than the waste it prevents.

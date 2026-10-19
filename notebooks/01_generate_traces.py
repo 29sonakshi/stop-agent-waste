@@ -1,5 +1,5 @@
 # Databricks notebook source
-# DBTITLE 1,01_generate_traces — simulate the AI Gateway
+# DBTITLE 1,01_generate_traces: simulate the AI Gateway
 # 01_generate_traces.py
 #
 # WHAT THIS IS
@@ -44,7 +44,7 @@ print(f"mode={MODE}  sessions/day={SESSIONS}  window={WINDOW_START}..{WINDOW_END
 
 # COMMAND ----------
 
-# DBTITLE 1,Argument generation — the hero feature's source
+# DBTITLE 1,Argument generation: the hero feature's source
 # The model sends arguments; the server declares a schema. Most of the time they agree.
 # When they disagree, the agent retries, reshapes, and burns tokens. The pipeline later
 # compares what was sent against what was declared -- so the mismatch is COMPUTABLE,

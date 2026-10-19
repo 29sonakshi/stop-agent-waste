@@ -1,5 +1,5 @@
 """
-Tiffin — Delivery agent console. Thin UI over agent.py.
+Tiffin Delivery agent console. Thin UI over agent.py.
 
 All agent logic lives in agent.py, which the test notebook (10_test_agent) also imports,
 so what gets tested is what ships. This file is presentation only.
@@ -11,7 +11,7 @@ import streamlit as st
 import agent
 import lakebase
 
-st.set_page_config(page_title="Tiffin — Delivery agent",
+st.set_page_config(page_title="Tiffin | Delivery agent",
                    page_icon="🍱", layout="wide")
 
 # ---------------------------------------------------------------- chrome + styles
@@ -133,7 +133,7 @@ if go:
                             + "</div>", unsafe_allow_html=True)
                 last_args.clear(); last_args.update(ev["args"])
             elif t == "guard_error":
-                st.warning(f"Guard unreachable — failing open, call allowed. "
+                st.warning(f"Guard unreachable, failing open: call allowed. "
                            f"({ev['error'][:140]})")
             elif t == "result":
                 if ev["ok"]:
@@ -168,7 +168,7 @@ if go:
             ok = sum(1 for x in logged if x)
             st.caption(f"{ok} of {len(logged)} guard verdicts written to Lakebase "
                        f"(`tiffin.guard_decisions`)" if ok else
-                       "Guard verdicts could not be written to Lakebase — "
+                       "Guard verdicts could not be written to Lakebase. "
                        "the run itself was unaffected.")
 
         st.session_state.setdefault("runs", {})[

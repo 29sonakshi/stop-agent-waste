@@ -1,5 +1,5 @@
 # Databricks notebook source
-# DBTITLE 1,04_derisk_model — STOP-OR-GO gate
+# DBTITLE 1,04_derisk_model: STOP-OR-GO gate
 # 04_derisk_model.py
 #
 # THE QUESTION THIS NOTEBOOK ANSWERS

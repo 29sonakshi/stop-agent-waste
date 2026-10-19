@@ -1,19 +1,19 @@
-# Evidence 7 — Lakebase operational serving
+# Evidence 7: Lakebase operational serving
 
 _Real cell-by-cell output from notebook `11_lakebase_serving`, run as a Databricks job on
 e2-dogfood (2026-10-19 21:12 UTC). Lakebase project `projects/tiffin-preflight`, branch `production`,
 Postgres schema `tiffin`._
 
-**Why Postgres and not the warehouse.** The gold Delta tables answer *"how much are we wasting?"*
-— an analytical scan over 1.3M rows. The app answers a different question for a tool-server
-owner: *"what should **my team** fix first?"* That is a point lookup by `owner_team` at
+**Why Postgres and not the warehouse.** The gold Delta tables answer *"how much are we
+wasting?"*, which is an analytical scan over 1.3M rows. The app answers a different question for
+a tool-server owner: *"what should **my team** fix first?"* That is a point lookup by `owner_team` at
 interactive latency, run every time someone opens the page. Wrong shape for a warehouse scan,
 right shape for an indexed Postgres read. So the ranked queue is pushed from Delta into Lakebase
 and the app reads it from there.
 
 Two tables:
-- **`tiffin.fix_queue`** — read path, pushed from `main.tiffin_agent_waste.fix_queue` (Delta gold)
-- **`tiffin.guard_decisions`** — write path, appended by the live agent at dispatch time
+- **`tiffin.fix_queue`.** read path, pushed from `main.tiffin_agent_waste.fix_queue` (Delta gold)
+- **`tiffin.guard_decisions`.** write path, appended by the live agent at dispatch time
 
 
 ### Cell 1

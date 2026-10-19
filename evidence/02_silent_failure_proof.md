@@ -1,10 +1,10 @@
-# Evidence 2 — the failures are invisible to error monitoring
+# Evidence 2: the failures are invisible to error monitoring
 
-_Executed against `main.tiffin_agent_waste` on Databricks (e2-dogfood) — 2026-10-19 21:08 UTC. Every table below is real query output, not illustrative._
+_Executed against `main.tiffin_agent_waste` on Databricks (e2-dogfood), 2026-10-19 21:08 UTC. Every table below is real query output, not illustrative._
 
 This is the core claim of the whole build: these tool calls fail while returning **HTTP 200**, so no error dashboard can see them. Proven below from the trace data.
 
-### Every tool call returns HTTP 200 — including the failures
+### Every tool call returns HTTP 200: including the failures
 
 If status code were a usable signal there would be non-200 rows here. There are none.
 
@@ -34,7 +34,7 @@ _2 row(s)_
 
 ### What the silver layer detects that the status code cannot
 
-Produced by comparing the arguments the agent sent against the `inputSchema` the MCP server itself declares — see `pipeline/03_silver_tool_calls.sql`.
+Produced by comparing the arguments the agent sent against the `inputSchema` the MCP server itself declares. See `pipeline/03_silver_tool_calls.sql`.
 
 ```sql
 SELECT coalesce(mismatch_class,'(clean)') AS mismatch_class, coalesce(mismatched_param,'-') AS param, count(*) AS calls FROM main.tiffin_agent_waste.tool_calls_silver GROUP BY 1,2 HAVING count(*) > 100 ORDER BY calls DESC

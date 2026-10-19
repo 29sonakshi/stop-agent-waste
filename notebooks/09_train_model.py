@@ -1,9 +1,9 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # 09 — Pre-flight tool-call risk model
+# MAGIC # 09: Pre-flight tool-call risk model
 # MAGIC
 # MAGIC Trains the model that sits in the agent's path and decides, **before** a tool call is
-# MAGIC dispatched, whether it will trigger a recovery loop — returning `coerce` / `warn` / `allow`.
+# MAGIC dispatched, whether it will trigger a recovery loop: returning `coerce` / `warn` / `allow`.
 # MAGIC
 # MAGIC ### The experiment that matters
 # MAGIC The claim is *"this generalises to a bug family it has never seen"*. So the headline
@@ -51,7 +51,7 @@ print(f"mlflow {_ver('mlflow')} | sklearn {_ver('scikit-learn')}")
 # COMMAND ----------
 # MAGIC %md
 # MAGIC ## Load the training table
-# MAGIC `bug_id` is joined for GROUPING ONLY — it is never a feature. Rows on tools with no
+# MAGIC `bug_id` is joined for GROUPING ONLY: it is never a feature. Rows on tools with no
 # MAGIC known bug form the `clean` group.
 
 # COMMAND ----------
@@ -114,7 +114,7 @@ groups = df["grp_bug_id"].values
 # MAGIC %md
 # MAGIC ## The headline experiment: leave-one-bug-family-out
 # MAGIC Each fold holds out an entire bug family. The model must price a mechanism it has
-# MAGIC never trained on. The silent family is excluded from scoring — it is deliberately
+# MAGIC never trained on. The silent family is excluded from scoring: it is deliberately
 # MAGIC out of ML scope (no behavioural signature), so including it would understate the model.
 
 # COMMAND ----------
@@ -165,7 +165,7 @@ print(f"\nLOFO mean AUC = {LOFO_MEAN}   worst family = {LOFO_MIN}")
 # MAGIC %md
 # MAGIC ## Baseline to beat
 # MAGIC The honest comparator is what a team does today without a model: flag a call if its
-# MAGIC arguments disagree with the declared schema. That is a rule, not a model — so if the
+# MAGIC arguments disagree with the declared schema. That is a rule, not a model: so if the
 # MAGIC model cannot beat it, there is no ML story.
 
 # COMMAND ----------
@@ -184,7 +184,7 @@ print(f"model                       = {LOFO_MEAN}   (+{round(LOFO_MEAN-BASE_MEAN
 # COMMAND ----------
 # MAGIC %md
 # MAGIC ## Final fit + operating point
-# MAGIC Thresholds are chosen on a calibration slice held out from training — never on the
+# MAGIC Thresholds are chosen on a calibration slice held out from training: never on the
 # MAGIC family-holdout results, which would be tuning on the test set.
 
 # COMMAND ----------

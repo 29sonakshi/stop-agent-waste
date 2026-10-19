@@ -1,6 +1,6 @@
-# Evidence 3 — business impact, computed not estimated
+# Evidence 3: business impact, computed not estimated
 
-_Executed against `main.tiffin_agent_waste` on Databricks (e2-dogfood) — 2026-10-19 21:08 UTC. Every table below is real query output, not illustrative._
+_Executed against `main.tiffin_agent_waste` on Databricks (e2-dogfood), 2026-10-19 21:08 UTC. Every table below is real query output, not illustrative._
 
 Every figure in the deck traces to one of these queries. Nothing is hardcoded: token counts come from the OTel spans, prices from `bronze_model_pricing`, and the window is the 90 days of trace history.
 
@@ -21,7 +21,7 @@ FROM main.tiffin_agent_waste.agent_waste_gold
 
 _1 row(s)_
 
-### Per agent — who is burning the budget
+### Per agent: who is burning the budget
 
 ```sql
 SELECT agent_id, max(display_name) AS display_name, max(owner_team) AS owner_team,

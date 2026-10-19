@@ -40,9 +40,9 @@ ALLOW_REQUEST = "What addresses do we have on file for customer C-9931112?"
 
 # The three demo scenarios, each verified end-to-end against the live endpoint.
 SCENARIOS = {
-    "Late deliveries — expect COERCE": DEFAULT_REQUEST,
-    "Merchant gone dark — expect WARN": WARN_REQUEST,
-    "Customer addresses — expect ALLOW": ALLOW_REQUEST,
+    "Late deliveries (expect COERCE)": DEFAULT_REQUEST,
+    "Merchant gone dark (expect WARN)": WARN_REQUEST,
+    "Customer addresses (expect ALLOW)": ALLOW_REQUEST,
 }
 
 _cfg = Config()

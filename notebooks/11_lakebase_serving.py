@@ -1,10 +1,10 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # 11 — Lakebase operational serving: the fix queue
+# MAGIC # 11: Lakebase operational serving: the fix queue
 # MAGIC
 # MAGIC The analytics layer (Delta gold) answers *"how much are we wasting?"*. That is a scan.
-# MAGIC An app that a tool-server owner opens every morning asks a different question —
-# MAGIC *"what should **my team** fix first?"* — and that is a point lookup, by owner, at
+# MAGIC An app that a tool-server owner opens every morning asks a different question:
+# MAGIC *"what should **my team** fix first?"*: and that is a point lookup, by owner, at
 # MAGIC interactive latency. Wrong shape for a warehouse, right shape for Postgres.
 # MAGIC
 # MAGIC So the ranked fix queue is pushed from `main.tiffin_agent_waste.fix_queue` (Delta)
@@ -144,7 +144,7 @@ print(f"inserted {len(rows)} rows into Lakebase")
 
 # COMMAND ----------
 
-# MAGIC %md ## 5. Read it back out of Postgres — this is what the app will run
+# MAGIC %md ## 5. Read it back out of Postgres: this is what the app will run
 
 # COMMAND ----------
 

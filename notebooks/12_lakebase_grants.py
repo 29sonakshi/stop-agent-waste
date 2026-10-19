@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # 12 — Grant the app's service principal access to Lakebase
+# MAGIC # 12: Grant the app's service principal access to Lakebase
 # MAGIC
 # MAGIC The `tiffin` schema is owned by the human who created it (me). The Databricks App runs as
 # MAGIC its own service principal, which holds `CAN_CONNECT_AND_CREATE` on the database but has no

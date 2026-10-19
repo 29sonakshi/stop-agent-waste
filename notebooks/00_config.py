@@ -1,6 +1,6 @@
 # Databricks notebook source
-# DBTITLE 1,00_config — The Reviewable Matrix
-# 00_config.py — Project configuration for Tiffin Agent Waste Detection
+# DBTITLE 1,00_config: The Reviewable Matrix
+# 00_config.py: Project configuration for Tiffin Agent Waste Detection
 # %run by all other notebooks in this project. Nothing is written here.
 #
 # STORY
@@ -363,7 +363,7 @@ ENG_HOURLY_USD    = 95.0   # documented constant for "engineering hours redeploy
 
 # COMMAND ----------
 
-# DBTITLE 1,Behaviour model — why recovery loops are expensive
+# DBTITLE 1,Behaviour model: why recovery loops are expensive
 # Recovery turns are a LEARNABLE FUNCTION of features, not noise. That is precisely what
 # lets the model price a bug family it has never seen, from its feature neighbours.
 # Anchored on the published 4.6-12.1 turn range by error-message quality.

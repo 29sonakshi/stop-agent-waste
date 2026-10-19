@@ -1,15 +1,17 @@
-# Evidence 5 — the agent, guard OFF vs guard ON
+# Evidence 5: the agent, guard OFF vs guard ON
 
 _Real execution output from notebook `10_test_agent`, run as a Databricks job on e2-dogfood
-(2026-10-19 21:10 UTC). The notebook imports the **same** `agent.py` the deployed app imports, so what is
+on 2026-10-19 21:10 UTC. The notebook imports the **same** `agent.py` the deployed app imports, so what is
 tested here is what ships. Both runs hit the live Claude endpoint and the live guard endpoint._
 
 The dispatcher asks the same question both times:
 
 > *"Which of courier CR-4172's deliveries are running late?"*
 
-The honest headline is not cost. It is **correctness**: the late delivery is on page 2 of a
+The honest headline is not cost. It is **correctness**: the late delivery sits on page 2 of a
 paginated tool response, and without the guard the agent never gets there.
+
+**Everything in the code blocks below is verbatim job output. It has not been edited.**
 
 
 ## Guard OFF
@@ -85,3 +87,7 @@ All other deliveries are on time:
 | answered the question | no | yes |
 
 Guard on used **5,378 fewer tokens** and **3 fewer turns**.
+
+Unguarded, the agent retried the same malformed pagination token four times, gave up, and never
+reached page 2. Guarded, it received `coerce p=0.8919`, rewrote the token from the tool server's
+own declared schema, and answered correctly on the first attempt.

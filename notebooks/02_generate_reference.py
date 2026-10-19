@@ -1,5 +1,5 @@
 # Databricks notebook source
-# DBTITLE 1,02_generate_reference — the dimension exports
+# DBTITLE 1,02_generate_reference: the dimension exports
 # 02_generate_reference.py
 #
 # WHAT THIS IS
