@@ -158,7 +158,8 @@ if go:
         k[0].metric("Turns", summary["turns"])
         k[1].metric("Tokens", f"{summary['tokens']:,}")
         k[2].metric("Guard", "on" if summary["guard_on"] else "off")
-        k[3].metric("Answered", "yes" if summary["answered"] else "no")
+        k[3].metric("Found the late delivery",
+                    "yes" if summary.get("found_late") else "no")
 
 
         st.session_state.setdefault("runs", {})[
@@ -169,11 +170,18 @@ if go:
         off, on = runs["off"], runs["on"]
         st.markdown('<div class="tf-turn">Guard off vs guard on</div>',
                     unsafe_allow_html=True)
-        st.table({"": ["Turns", "Tokens", "Answered the question"],
+        st.table({"": ["Turns", "Tokens", "Found the late delivery"],
                   "Guard off": [off["turns"], f"{off['tokens']:,}",
-                                "yes" if off["answered"] else "no"],
+                                "yes" if off.get("found_late") else "no"],
                   "Guard on":  [on["turns"], f"{on['tokens']:,}",
-                                "yes" if on["answered"] else "no"]})
+                                "yes" if on.get("found_late") else "no"]})
         if off["tokens"] and on["tokens"]:
-            st.caption(f"The guarded run used {off['tokens'] - on['tokens']:,} fewer tokens "
-                       f"and {off['turns'] - on['turns']} fewer turns.")
+            saved = (f"The guarded run used {off['tokens'] - on['tokens']:,} fewer tokens "
+                     f"and {off['turns'] - on['turns']} fewer turns.")
+            if on.get("found_late") and not off.get("found_late"):
+                st.caption("The late delivery is on page 2, behind the malformed token. "
+                           "Unguarded the agent never gets there: it spends the turns "
+                           "retrying and the dispatcher never learns the delivery is late. "
+                           + saved)
+            else:
+                st.caption(saved)

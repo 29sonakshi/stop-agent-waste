@@ -1,15 +1,19 @@
 # Evidence 5: the agent, guard OFF vs guard ON
 
-_Real execution output from notebook `10_test_agent`, run as a Databricks job on e2-dogfood
-on 2026-10-19 21:10 UTC. The notebook imports the **same** `agent.py` the deployed app imports, so what is
-tested here is what ships. Both runs hit the live Claude endpoint and the live guard endpoint._
+_Real execution output from notebook `10_test_agent`, run as a Databricks job on e2-dogfood on
+2026-10-19 23:12 UTC. The notebook imports the **same** `agent.py` the deployed app imports, so what is tested
+here is what ships. Both runs hit the live Claude endpoint and the live guard endpoint._
 
 The dispatcher asks the same question both times:
 
 > *"Which of courier CR-4172's deliveries are running late?"*
 
-The honest headline is not cost. It is **correctness**: the late delivery sits on page 2 of a
-paginated tool response, and without the guard the agent never gets there.
+The answer is **D-4410315, 18 minutes late**, and it sits on **page 2** of a paginated response.
+Reaching page 2 means handing back a token the tool server emits in v2 format but only accepts in
+v1.
+
+`found_late` is the field that matters. `answered` only records that the agent emitted a final
+message, which says nothing about whether it found anything.
 
 **Everything in the code blocks below is verbatim job output. It has not been edited.**
 
@@ -19,8 +23,9 @@ paginated tool response, and without the guard the agent never gets there.
 | metric | value |
 |---|---|
 | turns | 6 |
-| tokens | 9636 |
-| answered | False |
+| tokens | 10001 |
+| answered | True |
+| found_late | False |
 | guard_on | False |
 
 **Trace**
@@ -42,8 +47,7 @@ paginated tool response, and without the guard the agent never gets there.
   propose list_deliveries {"courier_id": "CR-4172", "page_token": "v2:eyJvZmZzZXQiOjI1fQ=="}
   FAIL "Your input couldn't be processed: TypeError in handler"
 --- turn 6
-  propose list_deliveries {"courier_id": "CR-4172", "page_token": "v2:eyJvZmZzZXQiOjI1fQ=="}
-  FAIL "Your input couldn't be processed: TypeError in handler"
+  FINAL: I attempted to retrieve the next page of CR-4172's deliveries (there's a `next_page_token` indicating more results), but the pagination request is failing with a server-side error (`TypeError in handler`) despite several retries. I don't want to report an incomplete picture, so here's what I can con
 ```
 
 ## Guard ON
@@ -51,8 +55,9 @@ paginated tool response, and without the guard the agent never gets there.
 | metric | value |
 |---|---|
 | turns | 3 |
-| tokens | 4258 |
+| tokens | 4236 |
 | answered | True |
+| found_late | True |
 | guard_on | True |
 
 **Trace**
@@ -70,12 +75,12 @@ paginated tool response, and without the guard the agent never gets there.
 --- turn 3
   FINAL: Courier **CR-4172** currently has one delivery running late:
 
-- **D-4410315** — en route to 1042 Harrison St, picked up from merchant M-553014 — **18 minutes late**
+- **D-4410315** — en route to 1042 Harrison St, **18 minutes late** (picked up from merchant M-553014)
 
-All other deliveries are on time:
-- D-4410221 — en route, 0 min late
-- D-4410288 — picked up, 0 min late
-- D-4410402 — delivered, 0 mi
+The rest of their deliveries are on time:
+- D-4410221 — en route, on time
+- D-4410288 — picked up, on time
+- D-4410402 — delivered, on
 ```
 
 ## Side by side
@@ -83,11 +88,29 @@ All other deliveries are on time:
 | | guard OFF | guard ON |
 |---|---|---|
 | turns | 6 | 3 |
-| tokens | 9,636 | 4,258 |
-| answered the question | no | yes |
+| tokens | 10,001 | 4,236 |
+| **found the late delivery** | **no** | **yes** |
 
-Guard on used **5,378 fewer tokens** and **3 fewer turns**.
+Guard on used **5,765 fewer tokens** and **3 fewer turns**, but the last
+row is the one that matters.
 
-Unguarded, the agent retried the same malformed pagination token four times, gave up, and never
-reached page 2. Guarded, it received `coerce p=0.8919`, rewrote the token from the tool server's
-own declared schema, and answered correctly on the first attempt.
+## What the unguarded agent actually does
+
+It does not fabricate an answer, and the claim is worth stating precisely rather than
+dramatically. Unguarded, the agent retries the malformed token, never reaches page 2, and then
+reports honestly that it is blocked:
+
+> *"I attempted to retrieve the next page of CR-4172's deliveries... but the pagination request is
+> failing with a server-side error (`TypeError in handler`) despite several retries. I don't want
+> to report an incomplete picture, so here's what I can confirm..."*
+
+Honest, and still a business failure: the dispatcher asked which deliveries are running late,
+spent 10,001 tokens and 6 turns, and never learned that D-4410315 is 18 minutes late.
+
+The loop is non-deterministic, so turn and token counts move between runs. An earlier run of this
+same notebook hit the turn limit without producing a final message at all. The deterministic part
+is `found_late`: the tool server always rejects a v2 token, so unguarded the agent never gets to
+page 2.
+
+Screenshots of this same comparison in the running app are in
+[`../docs/demo-walkthrough.md`](../docs/demo-walkthrough.md).

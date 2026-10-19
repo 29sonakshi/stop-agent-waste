@@ -246,6 +246,10 @@ def run_agent(request: str, guard_on: bool, emit: Callable[[dict], None]) -> dic
     seq: dict = {}
     answered = False
     turns_used = 0
+    # `answered` only means the agent emitted a final message. It says nothing about whether
+    # the answer was right. The late delivery lives on page 2, so reaching page 2 is the
+    # signal that actually separates a correct run from a confident wrong one.
+    found_late = False
 
     for turn in range(MAX_TURNS):
         turns_used = turn + 1
@@ -287,9 +291,14 @@ def run_agent(request: str, guard_on: bool, emit: Callable[[dict], None]) -> dic
                     emit({"type": "guard_error", "error": str(e)})
 
             ok, result = run_tool(fn, args)
+            if ok and isinstance(result, dict):
+                for d in (result.get("deliveries") or []):
+                    if (d.get("minutes_late") or 0) > 0:
+                        found_late = True
             emit({"type": "result", "ok": ok, "result": result})
             messages.append({"role": "tool", "tool_call_id": call["id"],
                              "content": json.dumps(result) if isinstance(result, dict) else str(result)})
 
     return {"turns": turns_used, "tokens": tokens, "answered": answered,
+            "found_late": found_late,
             "guard_on": guard_on}

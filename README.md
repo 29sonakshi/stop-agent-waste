@@ -46,8 +46,10 @@ genuine failures. That is proven in
 [`evidence/02_silent_failure_proof.md`](evidence/02_silent_failure_proof.md): there is nothing in
 the status column that separates broken calls from healthy ones.
 
-And it is not only money. In the demo scenario the late delivery sits on **page 2**, so the
-unguarded agent does not merely cost more. It answers the dispatcher **wrongly**.
+And it is not only money. In the demo scenario the late delivery sits on **page 2**, behind the
+malformed token, so the unguarded agent never reaches it. It does not fabricate an answer: it
+reports honestly that it could not paginate. But the dispatcher asked which deliveries are
+running late, waited six turns, and **never found out that one of them was 18 minutes late.**
 
 ## The insight
 
@@ -105,13 +107,19 @@ the live Claude endpoint and the live guard. Full traces in
 | | guard OFF | guard ON |
 |---|---|---|
 | turns | 6 | **3** |
-| tokens | 9,636 | **4,258** |
-| answered the question | **no** | **yes** |
+| tokens | 10,001 | **4,236** |
+| **found the late delivery** | **no** | **yes** |
 
-The guarded run used 5,378 fewer tokens. But the headline is the last row. Unguarded, the agent
-retried the same malformed token four times, gave up, and never reached the late delivery.
-Guarded, it got `coerce p=0.8919`, rewrote the token from the server's own declared schema, and
-answered correctly on the first attempt: **D-4410315, 18 minutes late**.
+The guarded run used 5,765 fewer tokens, but the last row is the headline. Unguarded, the agent
+retried the same malformed token and never reached page 2. Guarded, it got `coerce p=0.8919`,
+rewrote the token from the server's own declared schema, and answered correctly on the first
+attempt: **D-4410315, 18 minutes late**.
+
+Token counts move between runs because the loop is non-deterministic. `found_late` does not: the
+tool server always rejects a v2 token, so unguarded the agent never gets to page 2.
+
+A screenshot walkthrough of both runs is in
+[`docs/demo-walkthrough.md`](docs/demo-walkthrough.md).
 
 ### The model
 
@@ -152,6 +160,7 @@ per prevented failure.
 | [`03_business_impact.md`](evidence/03_business_impact.md) | The money, per agent and per tool, with the SQL |
 | [`04_unity_catalog_governance.md`](evidence/04_unity_catalog_governance.md) | UC lineage edges and billing attribution |
 | [`05_agent_ab_run.md`](evidence/05_agent_ab_run.md) | Full agent traces, guard off vs on, from a job run |
+| [`docs/demo-walkthrough.md`](docs/demo-walkthrough.md) | Screenshots of the same comparison in the running app |
 | [`06_guard_endpoint.md`](evidence/06_guard_endpoint.md) | Six live endpoint calls showing coerce and allow, with latency |
 | [`07_model_metrics.md`](evidence/07_model_metrics.md) | MLflow metrics pulled live, including the weak fold |
 
