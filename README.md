@@ -267,3 +267,10 @@ databricks apps deploy tiffin-preflight-demo --source-code-path /Workspace/<path
 ---
 
 *Built on Databricks (e2-dogfood) with Claude Code. Synthetic data throughout; no customer data.*
+
+## Submission artifacts
+
+- **Deck:** [`Pre-Flight-deck.pdf`](Pre-Flight-deck.pdf) — the business-audience slides
+  (also [`Pre-Flight-deck.txt`](Pre-Flight-deck.txt) as extracted text)
+- **Live app:** https://tiffin-preflight-demo-6051921418418893.staging.aws.databricksapps.com
+- **Genie space:** https://e2-dogfood.staging.cloud.databricks.com/genie/rooms/01f1c816b3e4161f9560d92ae0fc4ab4
