@@ -65,21 +65,14 @@ The rewrite is not a guess. It comes from the `inputSchema` the tool server itse
 `tools/list`. The call then succeeds and returns page 2, containing `D-4410315` at
 `minutes_late: 18`.
 
-### Turn 3: the answer
+### Turn 3: the answer, and the comparison
 
-The agent answers correctly and stops, in three turns:
+![The answer and the comparison](screenshots/05-answer-and-comparison.png)
 
-> Courier **CR-4172** currently has one delivery running late:
->
-> - **D-4410315** en route to 1042 Harrison St, **18 minutes late** (picked up from merchant
->   M-553014)
->
-> The rest of their deliveries are on time.
+The agent answers correctly and stops, in three turns: **D-4410315, 18 minutes late**, en route
+to 1042 Harrison St. The other three deliveries are on time.
 
-_A screenshot of the summary panel is pending. The earlier capture showed an older version of the
-comparison table, which labelled the last row "Answered the question" and therefore read
-`yes / yes` for both runs. That label was the bug described below, so the screenshot was removed
-rather than published next to text that contradicts it._
+The panel underneath is the comparison, run back to back in the same session.
 
 ---
 
@@ -88,7 +81,7 @@ rather than published next to text that contradicts it._
 | | guard OFF | guard ON |
 |---|---|---|
 | turns | 6 | **3** |
-| tokens | 10,001 | **4,236** |
+| tokens | 9,948 | **4,247** |
 | found the late delivery | **no** | **yes** |
 
 The token saving is real but it is the second-order benefit. The row that matters is the last
@@ -105,9 +98,10 @@ That is honest, and it is still a failure for the business: the dispatcher asked
 are running late, burned roughly 10,000 tokens, waited six turns, and **did not find out that
 D-4410315 is 18 minutes late.** The courier stays late and nobody is told.
 
-Numbers vary slightly between runs because the loop is non-deterministic: the model sometimes
-gives up after fewer retries. The deterministic part is the last row. The tool server always
-rejects a v2 token, so unguarded the agent never reaches page 2.
+The turn and token counts above are from the run in the screenshot. They move a little between
+runs because the loop is non-deterministic: the model sometimes gives up after fewer retries, and
+`evidence/05` records a separate job run at 10,001 against 4,236. The last row does not move. The
+tool server always rejects a v2 token, so unguarded the agent never reaches page 2.
 
 The same comparison, captured from a job run rather than the browser, is in
 [`../evidence/05_agent_ab_run.md`](../evidence/05_agent_ab_run.md).
