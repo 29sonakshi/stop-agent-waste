@@ -65,11 +65,21 @@ The rewrite is not a guess. It comes from the `inputSchema` the tool server itse
 `tools/list`. The call then succeeds and returns page 2, containing `D-4410315` at
 `minutes_late: 18`.
 
-### Turn 3: the answer, and the comparison
+### Turn 3: the answer
 
-![The answer and the comparison](screenshots/05-answer-and-comparison.png)
+The agent answers correctly and stops, in three turns:
 
-The agent answers correctly and stops: three turns, 4,240 tokens.
+> Courier **CR-4172** currently has one delivery running late:
+>
+> - **D-4410315** en route to 1042 Harrison St, **18 minutes late** (picked up from merchant
+>   M-553014)
+>
+> The rest of their deliveries are on time.
+
+_A screenshot of the summary panel is pending. The earlier capture showed an older version of the
+comparison table, which labelled the last row "Answered the question" and therefore read
+`yes / yes` for both runs. That label was the bug described below, so the screenshot was removed
+rather than published next to text that contradicts it._
 
 ---
 
