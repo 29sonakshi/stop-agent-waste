@@ -249,6 +249,7 @@ databricks apps deploy tiffin-preflight-demo --source-code-path /Workspace/<path
 
 ## Submission artifacts
 
+- **Repo:** https://github.com/29sonakshi/stop-agent-waste
 - **Deck:** [`Pre-Flight-deck.pdf`](Pre-Flight-deck.pdf), the business-audience slides, with
   [`Pre-Flight-deck.txt`](Pre-Flight-deck.txt) as extracted text
 - **Live app:** https://tiffin-preflight-demo-6051921418418893.staging.aws.databricksapps.com

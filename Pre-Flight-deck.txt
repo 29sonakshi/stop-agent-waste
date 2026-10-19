@@ -242,6 +242,6 @@ Genie Space Delivery Agent
 REAL — functional today on e2-dogfood
 Gateway OTel schema · Lakeflow pipeline (15 tables) · MLflow model + leave-one-bug-family-out eval · UC registry · Model 
 Serving endpoint · Genie space · Databricks App · AI/BI dashboard
-github.com/29sonakshi/tiffin-preflight  —  code + committed execution evidence
+github.com/29sonakshi/stop-agent-waste  —  code + committed execution evidence
 MOCKED — only to make the story demoable
 Synthetic Tiffin trace corpus (2.6M spans generated from a seeded bug registry) · 5 in-process MCP tool mocks inside the demo app
