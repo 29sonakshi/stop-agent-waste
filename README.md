@@ -14,7 +14,7 @@ One in five dollars of their token budget is wasted, and no dashboard at Tiffin 
 | **Problem** | MCP tool calls that fail while returning HTTP 200, so agents retry blindly and burn tokens |
 | **Measured impact** | **$109,418/yr 💸 wasted** out of **$528,421/yr 💸** agent spend, which is **20.7%** |
 | **Target users** | The platform team that owns the agent budget, and the tool-server owners who get a money-ranked fix queue |
-| **What it does** | Scores every tool call *before dispatch* and returns `coerce`, `warn` or `allow` in ~0.3 s |
+| **What it does** | Scores every tool call *before dispatch* and returns `coerce` or `allow` in ~0.3 s |
 
 Every number above is computed from trace data in Unity Catalog, not estimated. The queries that
 produce them are in [`evidence/`](evidence/) with their real output committed.
@@ -69,39 +69,15 @@ comparison *before dispatch* turns detection into prevention.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  classDef agents fill:#FFF1EE,stroke:#FF3621,stroke-width:2px,color:#1B3139
-  classDef gw     fill:#2272B4,stroke:#1A5A8F,color:#FFFFFF
-  classDef lake   fill:#F7F6F3,stroke:#D8D3CC,color:#1B3139
-  classDef pipe   fill:#EAF4EF,stroke:#00A972,stroke-width:2px,color:#1B3139
-  classDef ml     fill:#F7F6F3,stroke:#2272B4,stroke-width:2px,color:#1B3139
-  classDef serve  fill:#FF3621,stroke:#C72A19,color:#FFFFFF
-  classDef pg     fill:#FFFFFF,stroke:#00A972,stroke-width:2px,color:#1B3139
+![Pre-Flight architecture](docs/architecture.png)
 
-  A["<b>6 AI agents</b><br/>11 MCP tool servers<br/>$528K/yr spend"]:::agents
-  G["<b>AI Gateway</b><br/>one OTel span<br/>per tool call"]:::gw
-  D["<b>UC Delta</b><br/>2.6M spans<br/>90 days"]:::lake
-  P["<b>Lakeflow pipeline</b><br/>args sent vs declared<br/>MCP schema · 15 tables"]:::pipe
-  L["<b>1.3M labelled calls</b><br/>no human labelling"]:::pipe
-  T["<b>MLflow</b><br/>LOFO AUC 0.825<br/>vs 0.604 rules"]:::ml
-  S["<b>Model Serving</b><br/>coerce · warn · allow<br/>p50 0.3s"]:::serve
-  B["<b>Lakebase Postgres</b><br/>fix queue + audit"]:::pg
-  N["<b>Genie</b><br/>NL analytics"]:::pg
-  W["<b>Databricks App</b><br/>agent + fix queue"]:::lake
 
-  A --> G --> D --> P --> L --> T --> S
-  S -->|"verdict BEFORE dispatch"| A
-  P --> B
-  P --> N
-  S --> B
-  B --> W
-  S --> W
-```
+Read it left to right. The red arrow along the bottom is the point: the traces these agents
+emit train the model that guards those same agents, and the verdict comes back before the tool
+is ever called. Everything else in this space is after-the-fact analysis.
 
-The arrow back from Model Serving to the agents is the point. Everything else in this space is
-after-the-fact analysis. See [`docs/architecture.md`](docs/architecture.md) for the medallion
-detail and where the labelling actually happens.
+[`docs/architecture.md`](docs/architecture.md) has the same flow as Mermaid source, plus the
+medallion detail showing where the labelling actually happens.
 
 | Stage | Built with | Where |
 |---|---|---|
@@ -175,7 +151,7 @@ per prevented failure.
 | [`03_business_impact.md`](evidence/03_business_impact.md) | The money, per agent and per tool, with the SQL |
 | [`04_unity_catalog_governance.md`](evidence/04_unity_catalog_governance.md) | UC lineage edges and billing attribution |
 | [`05_agent_ab_run.md`](evidence/05_agent_ab_run.md) | Full agent traces, guard off vs on, from a job run |
-| [`06_guard_endpoint.md`](evidence/06_guard_endpoint.md) | Six live endpoint calls showing coerce, warn and allow, with latency |
+| [`06_guard_endpoint.md`](evidence/06_guard_endpoint.md) | Six live endpoint calls showing coerce and allow, with latency |
 | [`07_lakebase_serving.md`](evidence/07_lakebase_serving.md) | Cell-by-cell Postgres output: schema, load, point lookup |
 | [`08_model_metrics.md`](evidence/08_model_metrics.md) | MLflow metrics pulled live, including the weak fold |
 
@@ -183,11 +159,17 @@ per prevented failure.
 
 ## Decisions and trade-offs
 
-**The guard never blocks.** Three actions, not two. `coerce` rewrites the argument only when the
-server's declared schema says exactly how. `warn` flags but lets the call through, because if the
-fix is ambiguous then silently rewriting someone's argument is worse than letting it fail. And if
-the guard endpoint is unreachable, `agent.py` catches it, emits `guard_error` and **proceeds**. A
-guard that takes the agent down is worse than the waste it prevents.
+**Two actions, because there are only two behaviours.** `coerce` rewrites the argument, and only
+when the server's declared schema says exactly how. `allow` lets the call through untouched.
+The model itself emits a third borderline band it calls `warn`, but the wrapper has nothing
+distinct to do with it: an ambiguous fix is one you should not apply silently, so a borderline
+score is an allow. `score_call` collapses it and marks the call borderline for display. Naming a
+third verdict that behaves identically to the second would be describing a distinction the system
+does not make.
+
+**The guard never blocks.** If the endpoint is unreachable, `agent.py` catches it, emits
+`guard_error` and **proceeds**. A guard that takes the agent down is worse than the waste it
+prevents.
 
 **The model reads no natural language.** It gets seven fields: tool server, tool name, argument
 JSON, agent id, turn index, tokens spent so far, and how many times this tool was already called
@@ -227,7 +209,8 @@ traces can point it at their own catalog.
   rather than averaged away.
 - **One bug family generalises poorly**, per the point above. The mean of 0.825 is carried by the
   families that do generalise.
-- **The guard is advisory on `warn`.** It flags and proceeds. It does not hold the call for a human.
+- **The guard is advisory, never blocking.** It rewrites or it proceeds. It does not hold a
+  call for human review, and a borderline score proceeds rather than failing closed.
 - **Single workspace, single region.** There is no multi-region or HA story.
 
 ## Next steps

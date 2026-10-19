@@ -1,5 +1,5 @@
 """
-Tiffin Delivery agent console. Thin UI over agent.py.
+Tiffin — Delivery agent console. Thin UI over agent.py.
 
 All agent logic lives in agent.py, which the test notebook (10_test_agent) also imports,
 so what gets tested is what ships. This file is presentation only.
@@ -11,7 +11,7 @@ import streamlit as st
 import agent
 import lakebase
 
-st.set_page_config(page_title="Tiffin | Delivery agent",
+st.set_page_config(page_title="Tiffin — Delivery agent",
                    page_icon="🍱", layout="wide")
 
 # ---------------------------------------------------------------- chrome + styles
@@ -76,8 +76,8 @@ with right:
         else st.checkbox("Pre-flight guard", value=True)
     go = st.button("Run agent", type="primary", use_container_width=True)
 
-PILL = {"coerce": "#1D4ED8", "warn": "#B45309", "allow": "#0F766E"}
-ICON = {"coerce": "fixed", "warn": "flagged", "allow": "clean"}
+PILL = {"coerce": "#1D4ED8", "allow": "#0F766E"}
+ICON = {"coerce": "fixed", "allow": "clean"}
 
 # ---------------------------------------------------------------- run
 if go:
@@ -107,6 +107,9 @@ if go:
                     ev.get("turn"), p, ev.get("args_before", {}), {}))
                 extra = (f' &middot; <span style="color:#6B6B6B">{p.get("mismatch_class")}</span>'
                          if a != "allow" and p.get("mismatch_class") else "")
+                if p.get("borderline"):
+                    extra += (' &middot; <span style="color:#B45309">borderline, '
+                              'not rewritten</span>')
                 st.markdown(
                     f'<div style="margin:6px 0 2px;">'
                     f'<span class="tf-pill" style="background:{PILL.get(a,"#555")}">'
@@ -133,7 +136,7 @@ if go:
                             + "</div>", unsafe_allow_html=True)
                 last_args.clear(); last_args.update(ev["args"])
             elif t == "guard_error":
-                st.warning(f"Guard unreachable, failing open: call allowed. "
+                st.warning(f"Guard unreachable — failing open, call allowed. "
                            f"({ev['error'][:140]})")
             elif t == "result":
                 if ev["ok"]:
@@ -168,7 +171,7 @@ if go:
             ok = sum(1 for x in logged if x)
             st.caption(f"{ok} of {len(logged)} guard verdicts written to Lakebase "
                        f"(`tiffin.guard_decisions`)" if ok else
-                       "Guard verdicts could not be written to Lakebase. "
+                       "Guard verdicts could not be written to Lakebase — "
                        "the run itself was unaffected.")
 
         st.session_state.setdefault("runs", {})[

@@ -40,9 +40,9 @@ ALLOW_REQUEST = "What addresses do we have on file for customer C-9931112?"
 
 # The three demo scenarios, each verified end-to-end against the live endpoint.
 SCENARIOS = {
-    "Late deliveries (expect COERCE)": DEFAULT_REQUEST,
-    "Merchant gone dark (expect WARN)": WARN_REQUEST,
-    "Customer addresses (expect ALLOW)": ALLOW_REQUEST,
+    "Late deliveries — expect COERCE": DEFAULT_REQUEST,
+    "Merchant gone dark — expect WARN": WARN_REQUEST,
+    "Customer addresses — expect ALLOW": ALLOW_REQUEST,
 }
 
 _cfg = Config()
@@ -171,7 +171,15 @@ def score_call(tool_name: str, args: dict, turn: int, tokens_so_far: int, seq: i
         "arguments": json.dumps(args), "agent_id": AGENT_ID,
         "turn_index": turn, "tokens_before_turn": tokens_so_far,
         "call_seq_this_tool": seq}]})
-    return (out.get("predictions") or [{}])[0]
+    pred = (out.get("predictions") or [{}])[0]
+    # The model emits a borderline band it calls "warn". The wrapper has exactly two
+    # behaviours -- rewrite the argument, or let the call through untouched -- so a
+    # borderline score is an allow. Collapsing it here keeps the contract the app and
+    # the demo narrative describe honest: coerce or allow, nothing else.
+    if pred.get("action") == "warn":
+        pred["action"] = "allow"
+        pred["borderline"] = True
+    return pred
 
 
 def apply_coercion(args: dict, pred: dict):

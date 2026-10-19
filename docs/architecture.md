@@ -1,12 +1,12 @@
 # Architecture
 
-Two views. The first is the closed loop, which is the whole idea in one picture. The second is
-the medallion detail inside the Lakehouse stage.
+![Pre-Flight architecture](architecture.png)
 
-Both diagrams are committed as Mermaid source alongside the rendered PNGs, so they are
-readable as text, diffable in review, and editable without a drawing tool.
+Five stages, left to right, with the loop closing along the bottom. The same flow is below as
+Mermaid source so it is readable as text, diffable in review, and editable without a drawing
+tool, followed by the medallion detail inside the Lakehouse stage.
 
-## 1. The closed loop
+## 1. The closed loop, as source
 
 Source: [`architecture-overview.mmd`](architecture-overview.mmd)
 
@@ -26,7 +26,7 @@ flowchart LR
   P["<b>Lakeflow pipeline</b><br/>args sent vs declared<br/>MCP schema · 15 tables"]:::pipe
   L["<b>1.3M labelled calls</b><br/>no human labelling"]:::pipe
   T["<b>MLflow</b><br/>LOFO AUC 0.825<br/>vs 0.604 rules"]:::ml
-  S["<b>Model Serving</b><br/>coerce · warn · allow<br/>p50 0.3s"]:::serve
+  S["<b>Model Serving</b><br/>coerce · allow<br/>p50 0.3s"]:::serve
   B["<b>Lakebase Postgres</b><br/>fix queue + audit"]:::pg
   N["<b>Genie</b><br/>NL analytics"]:::pg
   W["<b>Databricks App</b><br/>agent + fix queue"]:::lake

@@ -3,6 +3,12 @@
 _Real responses from the Model Serving endpoint `tiffin-tool-call-risk`
 (model `main.tiffin_agent_waste.tool_call_risk` v1) on e2-dogfood, 2026-10-19 21:11 UTC._
 
+**On the `warn` rows below.** The served model emits three bands. The wrapper collapses the
+middle one: `score_call` maps `warn` to `allow` and sets `borderline`, because an ambiguous fix is
+one that should not be applied silently, and "flag it but proceed" is behaviourally identical to
+allowing it. So the raw endpoint responses here show `warn`, and the agent acts on **two** verdicts,
+`coerce` or `allow`. Both are shown so the mapping is auditable rather than hidden.
+
 The model sees **seven fields and no natural language**: tool server, tool name, the argument
 JSON, agent id, turn index, tokens spent so far, and how many times this tool has already been
 called this session. It never sees the user's question. That is deliberate: the signal is in the
