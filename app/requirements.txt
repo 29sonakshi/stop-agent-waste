@@ -1,3 +1,2 @@
 databricks-sdk
 requests
-psycopg2-binary

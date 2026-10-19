@@ -83,15 +83,14 @@ medallion detail showing where the labelling actually happens.
 |---|---|---|
 | **Lakeflow** | Spark Declarative Pipeline, 8 SQL files, bronze streaming tables through silver to gold materialized views, 15 tables | [`pipeline/`](pipeline/) |
 | **Unity Catalog** | `main.tiffin_agent_waste` governs raw spans, every pipeline table, the model, lineage, and billing attribution | [`evidence/04`](evidence/04_unity_catalog_governance.md) |
-| **Lakebase** | Postgres project `tiffin-preflight`. `tiffin.fix_queue` is the read path, `tiffin.guard_decisions` the write path appended live by the app | [`notebooks/11`](notebooks/11_lakebase_serving.py), [`evidence/07`](evidence/07_lakebase_serving.md) |
-| **ML** | MLflow `HistGradientBoostingClassifier`, custom PyFunc, registered to UC, behind Model Serving | [`notebooks/09`](notebooks/09_train_model.py), [`evidence/08`](evidence/08_model_metrics.md) |
+| **ML** | MLflow `HistGradientBoostingClassifier`, custom PyFunc, registered to UC, behind Model Serving | [`notebooks/09`](notebooks/09_train_model.py), [`evidence/07`](evidence/07_model_metrics.md) |
 | **Genie** | Genie space over the gold tables for natural-language analysis of waste | [space](https://e2-dogfood.staging.cloud.databricks.com/genie/rooms/01f1c816b3e4161f9560d92ae0fc4ab4) |
-| **Databricks App** | Streamlit. Runs the live agent loop with the guard inline, and serves the fix queue from Lakebase | [`app/`](app/) |
+| **Databricks App** | Streamlit. Runs the live agent loop with the guard inline, turn by turn | [`app/`](app/) |
 
-**It is one journey, not six demos.** The app's guard calls the served model. The served model was
-trained on labels the pipeline produced. The pipeline reads spans the agents emit. The verdicts the
-app produces are written back to Lakebase. Genie reads the same governed gold tables. Remove any
-stage and the next one has nothing to stand on.
+**It is one journey, not a set of demos.** The app's guard calls the served model. The served
+model was trained on labels the pipeline produced. The pipeline reads the spans the agents emit.
+Genie reads the same governed gold tables. Remove any stage and the next one has nothing to stand
+on.
 
 ---
 
@@ -130,7 +129,9 @@ to flag something it has never seen.
 
 Cost per failed call varies **102x** across tools. Ranking by error count puts
 `update_merchant` (1,167 failures at $0.02 each) above `list_deliveries` (3,844 failures at $2.18
-each). Ranking by money inverts that order, and that ordering is what Lakebase serves to the app.
+each). Ranking by money inverts that order. Genie writes that query itself over
+`tool_waste_gold`, so the fix list is a question anyone can ask in English rather than a report
+somebody has to maintain.
 
 ### What it costs to run
 
@@ -152,8 +153,7 @@ per prevented failure.
 | [`04_unity_catalog_governance.md`](evidence/04_unity_catalog_governance.md) | UC lineage edges and billing attribution |
 | [`05_agent_ab_run.md`](evidence/05_agent_ab_run.md) | Full agent traces, guard off vs on, from a job run |
 | [`06_guard_endpoint.md`](evidence/06_guard_endpoint.md) | Six live endpoint calls showing coerce and allow, with latency |
-| [`07_lakebase_serving.md`](evidence/07_lakebase_serving.md) | Cell-by-cell Postgres output: schema, load, point lookup |
-| [`08_model_metrics.md`](evidence/08_model_metrics.md) | MLflow metrics pulled live, including the weak fold |
+| [`07_model_metrics.md`](evidence/07_model_metrics.md) | MLflow metrics pulled live, including the weak fold |
 
 ---
 
@@ -182,12 +182,6 @@ a random split. That was a red flag rather than a win: rows from one bug family 
 near-duplicates, so a random split lets the model memorise the bug it is then graded on. LOFO is a
 harsher and more honest test, and it is the number quoted everywhere here.
 
-**Lakebase for the queue, Delta for the analysis.** The gold tables are the analytical source of
-truth and Genie reads them. But the app page a tool-server owner opens all day is a point lookup
-by owner team at interactive latency, which is an indexed Postgres read rather than a warehouse
-scan. Different access pattern, different store, same governed numbers. The Postgres total
-reconciles exactly to the Delta total at `$109,418.46/yr`.
-
 **Labels come from the contract, not from humans.** 1.3M labelled calls with zero hand-labelling,
 because the MCP server's own declared `inputSchema` is the ground truth for whether a call was
 well-formed. This is the part that makes the approach portable: any team already emitting Gateway
@@ -202,7 +196,7 @@ traces can point it at their own catalog.
   No customer data is used anywhere in this repo.
 - **The MCP tool servers in the demo app are in-process Python mocks.** Five of them, in
   `app/agent.py`. They exist so the agent loop can fail realistically on demand. The pipeline,
-  model, endpoint, Lakebase, Genie space and app are all real.
+  model, endpoint, Genie space and app are all real.
 - **This guard catches malformed calls, not wrong answers.** The `get_eta` bug returns HTTP 200
   with a plausible but wrong value, seconds where minutes were asked for. The arguments are
   perfectly valid, so there is no shape tell, and that is the fold scoring 0.336. Stated here
@@ -220,8 +214,8 @@ traces can point it at their own catalog.
    front of genuine tool servers.
 3. **Batch-score the trace history** to seed the fix queue retroactively, plus SQL alerts on waste
    thresholds per owner team.
-4. **Close the loop on `guard_decisions`** by feeding the audit trail back as training data, so the
-   model learns from its own verdicts.
+4. **Log the guard's own verdicts and feed them back** as training data, so the model learns from
+   the calls it rewrote and the ones it let through.
 
 ---
 
@@ -231,10 +225,8 @@ traces can point it at their own catalog.
 notebooks/   00-04  config, synthetic trace generation, validation, de-risking
              09     model training, LOFO evaluation, UC registration
              10     agent A/B harness (imports the shipping agent module)
-             11     Lakebase operational serving
-             12     Lakebase grants for the app service principal
 pipeline/    8 SQL files, the Lakeflow Spark Declarative Pipeline
-app/         the Databricks App: app.py (UI), agent.py (agent + guard), lakebase.py (Postgres)
+app/         the Databricks App: app.py (UI), agent.py (the agent loop + the guard)
 evidence/    real execution output, committed as text
 docs/        architecture diagrams as Mermaid source plus rendered PNGs
 ```
@@ -250,9 +242,6 @@ databricks pipelines start-update --pipeline-id <id> --profile <profile>
 # model training, evaluation and registration
 databricks api post /api/2.2/jobs/runs/submit --json '{"run_name":"train", "tasks":[
   {"task_key":"t","notebook_task":{"notebook_path":"<path>/09_train_model"}}]}'
-
-# Lakebase serving and grants
-#   run notebooks/11_lakebase_serving.py then notebooks/12_lakebase_grants.py
 
 # the app
 databricks apps deploy tiffin-preflight-demo --source-code-path /Workspace/<path>/demo_app

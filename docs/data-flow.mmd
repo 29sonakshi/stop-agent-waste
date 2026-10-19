@@ -28,11 +28,9 @@ flowchart TB
     G1["agent_waste_gold<br/>spend and waste per agent"]:::gold
     G2["tool_waste_gold<br/>waste per tool server"]:::gold
     G3["call_risk_features_gold<br/>the training set"]:::gold
-    G4["fix_queue<br/>ranked by dollars"]:::gold
   end
 
   M["MLflow model<br/>tool_call_risk"]:::out
-  P["Lakebase Postgres<br/>operational serving"]:::out
   N["Genie space<br/>NL analytics"]:::out
 
   R --> B1
@@ -47,8 +45,6 @@ flowchart TB
   S2 --> G1
   B4 --> G1
   S1 --> G3
-  G2 --> G4
   G3 --> M
-  G4 --> P
   G1 --> N
   G2 --> N

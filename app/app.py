@@ -9,9 +9,8 @@ import json
 import streamlit as st
 
 import agent
-import lakebase
 
-st.set_page_config(page_title="Tiffin — Delivery agent",
+st.set_page_config(page_title="Tiffin | Delivery agent",
                    page_icon="🍱", layout="wide")
 
 # ---------------------------------------------------------------- chrome + styles
@@ -54,6 +53,7 @@ st.markdown('<div class="tf-goal">Ask this agent anything about a courier &mdash
             'customer&rsquo;s address. It answers by calling Tiffin&rsquo;s delivery systems '
             'for you.</div>', unsafe_allow_html=True)
 
+
 # ---------------------------------------------------------------- input
 # Quick-pick buttons must render ABOVE the text area: a click reruns the script, and the
 # session_state assignment has to happen before the text_area widget is instantiated.
@@ -83,7 +83,6 @@ ICON = {"coerce": "fixed", "allow": "clean"}
 if go:
     body = st.container()
     last_args = {}
-    logged = []
 
     def emit(ev):
         t = ev["type"]
@@ -99,12 +98,6 @@ if go:
             elif t == "guard":
                 p = ev["pred"]
                 a = p.get("action", "allow")
-                # Append-only audit trail in Lakebase. Deliberately best-effort:
-                # lakebase.log_decision swallows its own errors so a logging
-                # outage can never fail the tool call it is describing.
-                logged.append(lakebase.log_decision(
-                    agent.AGENT_ID, ev.get("tool_server"), ev.get("tool"),
-                    ev.get("turn"), p, ev.get("args_before", {}), {}))
                 extra = (f' &middot; <span style="color:#6B6B6B">{p.get("mismatch_class")}</span>'
                          if a != "allow" and p.get("mismatch_class") else "")
                 if p.get("borderline"):
@@ -167,12 +160,6 @@ if go:
         k[2].metric("Guard", "on" if summary["guard_on"] else "off")
         k[3].metric("Answered", "yes" if summary["answered"] else "no")
 
-        if logged:
-            ok = sum(1 for x in logged if x)
-            st.caption(f"{ok} of {len(logged)} guard verdicts written to Lakebase "
-                       f"(`tiffin.guard_decisions`)" if ok else
-                       "Guard verdicts could not be written to Lakebase — "
-                       "the run itself was unaffected.")
 
         st.session_state.setdefault("runs", {})[
             "on" if summary["guard_on"] else "off"] = summary
@@ -190,40 +177,3 @@ if go:
         if off["tokens"] and on["tokens"]:
             st.caption(f"The guarded run used {off['tokens'] - on['tokens']:,} fewer tokens "
                        f"and {off['turns'] - on['turns']} fewer turns.")
-
-
-# ---------------------------------------------------------------- the fix queue
-# Read path out of Lakebase Postgres. Prevention saves the individual call, but somebody
-# still has to repair the tool servers -- and the order to repair them in is a money
-# question, not an error-count question.
-st.divider()
-st.markdown('<div class="tf-turn">Fix queue &mdash; which tool contract to repair first</div>',
-            unsafe_allow_html=True)
-st.caption("Served from Lakebase Postgres, ranked by annualised wasted spend. "
-           "Filtering by owner team is a single indexed lookup.")
-
-try:
-    teams = ["all teams"] + lakebase.owner_teams()
-    pick = st.selectbox("Owner team", teams, label_visibility="collapsed")
-    rows = lakebase.fix_queue(owner_team=pick)
-    if rows:
-        st.dataframe(
-            [{"#": r["fix_rank"],
-              "owner team": r["owner_team"],
-              "tool": f'{r["tool_server"]}.{r["tool_name"]}',
-              "wasted / yr": f'${float(r["waste_usd_per_year"]):,.0f}',
-              "failed calls": f'{r["failed_calls"]:,}',
-              "failure rate": f'{float(r["failure_rate_pct"]):.1f}%',
-              "$ per failed call": f'${float(r["waste_usd_per_failed_call"]):.2f}'}
-             for r in rows],
-            hide_index=True, use_container_width=True)
-        worst = max(float(r["waste_usd_per_failed_call"]) for r in rows)
-        least = min(float(r["waste_usd_per_failed_call"]) for r in rows if
-                    float(r["waste_usd_per_failed_call"]) > 0)
-        if len(rows) > 1 and least:
-            st.caption(f"Cost per failed call spans {worst/least:.0f}x across these tools. "
-                       f"Ranking by error count would invert this order.")
-    else:
-        st.info("No queue entries for that team.")
-except Exception as e:  # noqa: BLE001
-    st.warning(f"Fix queue unavailable (Lakebase): {e}")

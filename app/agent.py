@@ -277,10 +277,7 @@ def run_agent(request: str, guard_on: bool, emit: Callable[[dict], None]) -> dic
             if guard_on:
                 try:
                     pred = score_call(fn, args, turn, tokens, seq[fn])
-                    # Carry the call's identity on the event so a consumer can audit it
-                    # without having to stitch state back together from earlier events.
-                    emit({"type": "guard", "pred": pred, "tool": fn, "turn": turn,
-                          "tool_server": TOOL_SERVER[fn], "args_before": dict(args)})
+                    emit({"type": "guard", "pred": pred})
                     if pred.get("action") == "coerce":
                         args, note = apply_coercion(args, pred)
                         if note:

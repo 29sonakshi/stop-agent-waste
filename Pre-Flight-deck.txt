@@ -63,7 +63,8 @@ probability plus a verdict: coerce or allow. On coerce the agent rewrites the ba
 argument from the server's own declared schema, so the failure and its retry 
 loop are prevented at dispatch, not diagnosed afterwards.
 VP Engineering: 20.7% of agent spend recovered, agents right instead of confidently 
-wrong.  Tool-server owner: a fix queue ranked by dollars, cost per failed call varies 102x.
+wrong.  Tool-server owner: knows which contract to repair first, ranked by dollars 
+rather than error count, because cost per failed call varies 102x.
 THE PROBLEM
 Tiffin runs 6 AI agents calling MCP tool servers through the 
 Databricks AI Gateway. 
@@ -156,21 +157,22 @@ Model training
 GradientBoostingClassifier
 UC Model Registry
 tool_call_risk  v1 @prod
-One model, three consumers:
-prevent · prioritise · audit
+One model, two consumers:
+prevent, then prioritise
 Model Serving
 tiffin-tool-call-risk
 Scores every tool call
 BEFORE it runs
 ALLOW · COERCE 
-Lakebase Postgres
-tiffin.fix_queue — what to repair first,
-ranked by $ wasted. The app reads it.
-tiffin.guard_decisions — every verdict,
-appended live as an audit trail.
-Genie space — NL analysis of waste
+Genie space
+Natural-language analytics over the
+gold tables: which contract costs
+the most per failed call, which
+agents are over budget, which
+deploy introduced which bug.
+Genie writes the SQL itself.
 ⑥  THE LOOP — the traces these agents emit train the model that guards those same agents. The verdict comes back before the tool is ever called.
-Unity Catalog — one governance plane across all of it:  raw spans · 15 pipeline tables · model lineage · serving endpoint · Lakebase Postgres · Genie space
+Unity Catalog — one governance plane across all of it:  raw spans · 15 pipeline tables · model lineage · serving endpoint · Genie space
 6 production agents · 11 MCP tool servers
 $528K/yr spend · $109K/yr wasted (20.7%)
 ranked by wasted spend ↓
@@ -239,7 +241,7 @@ Links
 Genie Space Delivery Agent
 REAL — functional today on e2-dogfood
 Gateway OTel schema · Lakeflow pipeline (15 tables) · MLflow model + leave-one-bug-family-out eval · UC registry · Model 
-Serving endpoint · Lakebase Postgres · Genie space · Databricks App · AI/BI dashboard
+Serving endpoint · Genie space · Databricks App · AI/BI dashboard
 github.com/29sonakshi/tiffin-preflight  —  code + committed execution evidence
 MOCKED — only to make the story demoable
 Synthetic Tiffin trace corpus (2.6M spans generated from a seeded bug registry) · 5 in-process MCP tool mocks inside the demo app

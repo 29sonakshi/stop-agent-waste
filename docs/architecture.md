@@ -27,16 +27,12 @@ flowchart LR
   L["<b>1.3M labelled calls</b><br/>no human labelling"]:::pipe
   T["<b>MLflow</b><br/>LOFO AUC 0.825<br/>vs 0.604 rules"]:::ml
   S["<b>Model Serving</b><br/>coerce · allow<br/>p50 0.3s"]:::serve
-  B["<b>Lakebase Postgres</b><br/>fix queue + audit"]:::pg
   N["<b>Genie</b><br/>NL analytics"]:::pg
-  W["<b>Databricks App</b><br/>agent + fix queue"]:::lake
+  W["<b>Databricks App</b><br/>live agent loop"]:::lake
 
   A --> G --> D --> P --> L --> T --> S
   S -->|"verdict BEFORE dispatch"| A
-  P --> B
   P --> N
-  S --> B
-  B --> W
   S --> W
 ```
 
@@ -45,7 +41,7 @@ this space is after-the-fact analysis. Here the traces the agents emit train the
 guards those same agents, and the verdict arrives before the tool call is dispatched.
 
 Unity Catalog governs every box: the raw spans, all 15 pipeline tables, model lineage, the
-serving endpoint, the Lakebase project, and the Genie space.
+serving endpoint, and the Genie space.
 
 ## 2. Medallion detail
 
@@ -82,11 +78,9 @@ flowchart TB
     G1["agent_waste_gold<br/>spend and waste per agent"]:::gold
     G2["tool_waste_gold<br/>waste per tool server"]:::gold
     G3["call_risk_features_gold<br/>the training set"]:::gold
-    G4["fix_queue<br/>ranked by dollars"]:::gold
   end
 
   M["MLflow model<br/>tool_call_risk"]:::out
-  P["Lakebase Postgres<br/>operational serving"]:::out
   N["Genie space<br/>NL analytics"]:::out
 
   R --> B1
@@ -101,9 +95,7 @@ flowchart TB
   S2 --> G1
   B4 --> G1
   S1 --> G3
-  G2 --> G4
   G3 --> M
-  G4 --> P
   G1 --> N
   G2 --> N
 ```
@@ -119,11 +111,9 @@ is the ground truth.
 
 The SQL is in [`../pipeline/03_silver_tool_calls.sql`](../pipeline/03_silver_tool_calls.sql).
 
-### Two serving paths, on purpose
+### Where the gold tables go
 
-`agent_waste_gold` and `tool_waste_gold` stay in Delta and are what Genie reads, because
-"how much are we wasting and where" is an analytical question over 1.3M rows.
-
-`fix_queue` is pushed into Lakebase Postgres, because "what should my team fix first" is a point
-lookup by `owner_team` that an app runs on every page view. Different access pattern, different
-store, same governed numbers. The Postgres totals reconcile exactly to the Delta totals.
+`call_risk_features_gold` is the training set for the model. `agent_waste_gold` and
+`tool_waste_gold` are what Genie reads, because "how much are we wasting, where, and which
+contract costs the most per failure" are analytical questions over 1.3M rows, and Genie writes
+that SQL itself rather than needing a precomputed answer.
