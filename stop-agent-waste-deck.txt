@@ -80,37 +80,36 @@ Merchant Onboarding Agent
 ## Slide 3
 
 What was observed
-A dispatcher asks which of a courier's deliveries are running late in order to act on it: reroute, warn the customer, comp the order. 8.0% of those questions hit a tool call that failed while returning HTTP 200. Here is what that costs the dispatch floor.
-Measured, per dispatcher session
-Clean session
-Hit a silent tool failure
-What it means on the dispatch floor
-Dispatcher sessions
-223,711
-8.0%  ·  19,401
-One question in twelve comes back blind. Not an edge case.
-Median time to an answer
-8.6 s
-20.6 s
-2.4x the wait, inside the window where a reroute still changes the outcome.
-Agent turns to reach it
-3.82
-7.47
-The retry loop, not slower tools: per-turn latency is drawn from the same distribution either way.
-Cost per question  (wasted)
-$0.46   ($0.02)
-$1.24   ($1.14)
-2.7x the cost, and 92% of a broken session's spend buys nothing.
-And sometimes the answer never arrives at all
-Recorded A/B run, same question, guard off then guard on.   GUARD OFF: the agent's page-2 tool call was rejected by the server, it did not retry, and it reported no late deliveries. D-4410315 was 18 minutes late and the dispatcher was never told.   GUARD ON: the malformed argument was coerced from the server's own declared schema, the call succeeded first time, and the late delivery surfaced.
-Measured across 2.6M Gateway OTel spans · 243,112 sessions · 90 days · 6 production agents. Every figure above is a committed query result in evidence/09_delivery_operations_impact.md and evidence/05_agent_ab_run.md.
-Guard accuracy, scored leave-one-bug-family-out so that no bug family in a test fold appears in training: AUC 0.825. A hand-written rule set scored the same way: 0.604. An error-log baseline: 0.000, because the failures return HTTP 200.
-Not claimed: the conversion from a missed reroute window into on-time-delivery percentage. That coefficient is the operator's own, and the four rows above move regardless of what it turns out to be.
+163 questions a day come back without a straight answer. Two different people are asking, neither is told that anything failed, and the tool call that broke returned HTTP 200.
+THE CUSTOMER ASKS  —  “where is my order?”
+113 a day
+10,198 of 93,254 Order Support sessions (10.9%) hit a tool call that failed silently. The customer waits 2.4x longer for an answer, or is told something that is not true.
+THE DISPATCHER ASKS  —  “which of this courier’s runs are late?”
+49 a day
+4,439 of 55,723 Delivery Routing sessions (8.0%). In the recorded run the agent reported no late deliveries while D-4410315 was 18 minutes late, and nobody was told.
+ON-TIME RATE
+163 situations a day that nobody acted on in time.
+Every blind question is a courier run or an order whose status reached no one while there was still a window to reroute, warn or comp.
+Industry context: food-delivery on-time runs 56–62%, against roughly 95% for general last-mile (npj, 2026). Tiffin operates inside that gap and this is one input to it.
+Measured: the blind questions. Tiffin’s own: how many of those reroutes would have landed.
+ORDER ACCURACY
+The agent does not answer slowly. It answers wrongly.
+GUARD OFF  —  “no late deliveries found”, while D-4410315 was 18 minutes late. The page-2 call was rejected and never retried, so the agent answered from half the data.
+GUARD ON  —  the malformed argument was coerced from the server’s own declared schema, page 2 came back, and the late delivery surfaced.
+Fully measured. No assumption anywhere in this tile.
+CUSTOMER SATISFACTION AND CHURN
+The driver is measured. The score is Tiffin’s own.
+Measured driver: the wait doubles, 8.6s to 20.6s, or the answer is wrong. For a customer asking where their order is, that is the whole experience.
+Churn, published rate: 16% of shoppers abandon after a single bad delivery experience, 35% after a late one (Bringg 2026 Delivery Experience Study).
+We state the driver we measured, not a satisfaction score we did not.
+WHY IT HAPPENS
+A broken MCP tool contract is rejected by the server but comes back HTTP 200, so the agent retries blind. Turns 3.82 → 7.47.  Median wait 8.6s → 20.6s.  Cost per question $0.46 → $1.24, of which $1.14 buys nothing.  Nothing alerts.
+Measured across 2.6M Gateway OTel spans · 243,112 sessions · 90 days · 6 production agents. Session, wait, turn and cost figures are committed query results in evidence/09_delivery_operations_impact.md and evidence/05_agent_ab_run.md.
+What is measured, and what is not: the blind-question counts, the waits, the turns, the costs and the wrong answer above are all derived from the trace corpus. On-time rate and CSAT are Tiffin’s own operating metrics — this slide supplies the input to them and a published rate for churn, not a replacement for the operator’s own coefficient.
 
 ## Slide 4
 
 How this was built
-Roughly 20 hours over six days on a Databricks dogfood workspace. 14 commits, sole author. Claude Code (Opus) wrote most of the code, driving the Databricks CLI and REST APIs directly rather than handing me scripts to run. The framing, the modelling calls and every decision below are mine.
 ①  THE WORKFLOW  —  none of it was built in parallel, because each stage exposed a fault in the one before it
 Generate the
 trace corpus
@@ -144,8 +143,8 @@ It measured the wrong thing first.
 Summed tool latency made broken sessions look faster, because validator rejections return quickly. The honest measure is turn + tool latency, at the median.
 It needed to be told to stop.
 A fix-queue panel, a second app tab, a third verdict with no behaviour behind it. All built, all cut.
-WHAT IS REAL — every platform component is live on e2-dogfood: AI Gateway OTel span schema · Lakeflow Spark Declarative Pipeline (15 tables) · Unity Catalog · MLflow + UC Model Registry · Model Serving · Lakebase verdict log · Genie space · Databricks App · AI/BI dashboard.
-WHAT IS SYNTHETIC — the Tiffin corpus: 2.6M spans generated from a seeded bug registry against the real Gateway span schema. Real shape, fabricated volume, because real Gateway traces are not mine to publish.
+WHAT IS REAL - every platform component is live on e2-dogfood: AI Gateway OTel span schema · Lakeflow Spark Declarative Pipeline (15 tables) · Unity Catalog · MLflow + UC Model Registry · Model Serving · Lakebase verdict log · Genie space · Databricks App · AI/BI dashboard.
+WHAT IS SYNTHETIC - the Tiffin corpus: 2.6M spans generated from a seeded bug registry against the real Gateway span schema. Real shape, fabricated volume, because real Gateway traces are not mine to publish.
 The full account, including the trade-offs and what the mistakes above cost, is in BUILD.md and evidence/10_build_process.md.
 
 ## Slide 5
@@ -186,7 +185,6 @@ Links
 Genie Space
 Delivery Agent
 REAL — functional today on e2-dogfood
-Gateway OTel schema · Lakeflow pipeline (15 tables) · MLflow model + leave-one-bug-family-out eval · UC registry · Model Serving endpoint · Lakebase verdict log · Genie space · Databricks App · AI/BI dashboard
 github.com/29sonakshi/stop-agent-waste  —  code + committed execution evidence
 MOCKED — only to make the story demoable
 Synthetic Tiffin trace corpus (2.6M spans generated from a seeded bug registry) · 5 in-process MCP tool mocks inside the demo app
