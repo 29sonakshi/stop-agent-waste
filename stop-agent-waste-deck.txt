@@ -82,14 +82,14 @@ Merchant Onboarding Agent
 What was observed
 163 questions a day come back without a straight answer, and 23 of those are answered from data the agent never got. Two different people are asking; neither is told that anything failed.
 THE CUSTOMER ASKS  —  “where is my order?”
-113 a day hit a failed tool call
+113 questions a day hit a silent failure
 10,198 Order Support conversations of 93,254, over 90 days  =  10.9%
 85.7%
 retried and got there in the end — 8,737 conversations, 97 a day. The customer simply waited: 8.6s → 20.6s.
 14.3%
 the tool never returned at all, so the agent answered from incomplete data — 1,461 conversations, 16 a day.
 THE DISPATCHER ASKS  —  “which of this courier’s runs are late?”
-49 a day hit a failed tool call
+49 questions a day hit a silent failure
 4,439 Delivery Routing conversations of 55,723, over 90 days  =  8.0%
 86.6%
 retried and got there in the end — 3,844 conversations, 43 a day, after roughly twice the turns.
