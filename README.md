@@ -198,51 +198,7 @@ per prevented failure.
 
 ## How this was built
 
-Roughly 20 hours over six days, on a dogfood workspace, built conversationally with
-**Claude Code** driving the Databricks CLI, the SQL Statement API, the Jobs API and the Google
-Slides API directly. Nothing here was generated in one pass; the order mattered and several
-things had to be thrown away.
-
-**The sequence.** Generate a synthetic trace corpus that imitates the real AI Gateway OTel schema
-→ build the Lakeflow pipeline against it → discover the labels were wrong and fix the generator →
-train and evaluate → serve → wrap an agent around the endpoint → add the audit trail. Each stage
-exposed a problem in the one before it, which is why they were not built in parallel.
-
-**Where the AI was a genuine force multiplier**
-
-- *Throwaway verification.* Dozens of one-off probes to answer "does this actually work": does
-  `variant_get` resolve a dotted OTel key, does `serving-endpoints query` forward a `tools`
-  payload, does the app's service principal exist as a Postgres role yet. Each is a two-minute
-  script that would not be worth writing by hand, and each caught a wrong assumption early.
-- *Volume with discipline.* 2.6M spans and 15 pipeline tables are only tractable if every claim
-  is re-queried rather than remembered. Every figure in `evidence/` is a committed query result
-  for that reason.
-- *Adversarial review of my own results.* The most valuable use was asking it to attack a number
-  I liked. The model scoring near 1.0 on a random split was treated as a red flag rather than a
-  win, which is what led to the leave-one-bug-family-out protocol.
-- *Slides as code.* The architecture diagram is built through the Slides API from a script, so a
-  layout change is a diff rather than an afternoon of dragging boxes.
-
-**Where it got things wrong, and what that cost**
-
-- *It built to the checklist.* The first Lakebase layer was a nine-row table copied out of Delta
-  to satisfy a requirement. It was removed, and the second attempt was scoped against what Model
-  Serving inference logs already capture, which is the version that earned its place.
-- *It over-trusted its own synthetic data.* A correlation between tool failures and escalation
-  rate was presented to me as a finding before anyone checked the generator, where that
-  correlation had been hand-written. It is now labelled an assumption wherever it appears, and
-  the operational numbers used in the business case are restricted to derived ones.
-- *Silent failures in the tooling.* `variant_get` with a dotted path returned all-NULL while the
-  pipeline reported success; a `# MAGIC %md` cell swallowed the code beneath it and failed three
-  cells later with an unrelated `NameError`. Both were found by checking output rather than
-  trusting a green status, which became the habit the `evidence/` directory exists to enforce.
-- *It needed to be told to stop.* Left alone it kept adding surface area. The fix queue, a second
-  app tab, and a third verdict that had no behaviour behind it were all built and then cut.
-
-**The judgment that stayed human.** What problem was worth solving, that a verdict with no
-distinct behaviour should not be called a verdict, that a guard which can take the agents offline
-is worse than the waste it prevents, and that a component which can be removed without breaking a
-feature is decoration. Those decisions are argued in the code comments and in the notebooks.
+The build process itself — workflow, AI tooling, where it helped, where it was wrong, and the trade-offs made along the way — is in [`BUILD.md`](BUILD.md).
 
 ## Decisions and trade-offs
 
