@@ -135,3 +135,108 @@ _6 row(s)_
 
 Steps 1 to 3 are measured. Step 4 is the operator's number to supply, and the guard moves steps
 1 to 3 regardless of what that coefficient turns out to be.
+
+## Who is asking, and how often they get no straight answer
+
+_Added 2026-10-20 17:58 UTC, same warehouse and catalog as above._
+
+The cohort split at the top of this file is fleet-wide. Dual-audience framing needs it per agent,
+because the two agents a human actually talks to are not equally affected. `order-support-agent`
+is the one an end customer reaches when asking where their order is; `delivery-routing-agent` is
+the one a dispatcher asks about courier runs.
+
+```sql
+WITH bad AS (
+  SELECT trace_id, max(CASE WHEN shape_mismatch THEN 1 ELSE 0 END) AS hit
+  FROM main.tiffin_agent_waste.tool_calls_silver GROUP BY trace_id
+)
+SELECT s.agent_id,
+       count(*) AS sessions,
+       sum(b.hit) AS blind_sessions,
+       round(100.0*sum(b.hit)/count(*),1) AS pct_blind,
+       round(sum(b.hit)/90.0,1) AS blind_per_day
+FROM main.tiffin_agent_waste.sessions_silver s JOIN bad b USING (trace_id)
+GROUP BY s.agent_id
+ORDER BY blind_sessions DESC
+```
+
+| agent_id | sessions | blind_sessions | pct_blind | blind_per_day |
+|---|---|---|---|---|
+| order-support-agent | 93254 | 10198 | 10.9 | 113.3 |
+| delivery-routing-agent | 55723 | 4439 | 8.0 | 49.3 |
+| merchant-onboarding-agent | 34004 | 2033 | 6.0 | 22.6 |
+| menu-recommendation-agent | 12993 | 1836 | 14.1 | 20.4 |
+| customer-retention-agent | 19368 | 895 | 4.6 | 9.9 |
+| fraud-detection-agent | 27770 | 0 | 0.0 | 0.0 |
+
+_6 row(s)_
+
+The blind column sums to 19,401, which is the fleet-wide figure at the top of this file, and the
+sessions column sums to 243,112. The two human-facing agents account for 14,637 of the 19,401.
+
+### Waiting longer is not the same as being told something false
+
+A blind conversation is not automatically a wrong answer. Sometimes the agent retries and
+eventually gets what it was denied, so the only cost is the wait. Sometimes the tool never
+returns at all and the agent answers from whatever it already had. Those are different harms and
+the slide claims both, so both are counted here.
+
+**Definition.** A conversation is counted as `answered_without_the_data` when some tool it called
+failed the schema check and that same tool never returned successfully anywhere in the same
+conversation. It is a lower bound on wrong answers, not an upper one: the agent may also have
+been wrong in conversations where a retry did eventually succeed, and it may occasionally have
+recovered the same fact from a different tool.
+
+```sql
+WITH per_tool AS (
+  SELECT trace_id, tool_server, tool_name,
+         MAX(CASE WHEN shape_mismatch THEN 1 ELSE 0 END) AS had_fail,
+         MAX(CASE WHEN NOT shape_mismatch THEN 1 ELSE 0 END) AS had_ok
+  FROM main.tiffin_agent_waste.tool_calls_silver
+  WHERE agent_id = 'order-support-agent'   -- re-run with 'delivery-routing-agent'
+  GROUP BY trace_id, tool_server, tool_name
+)
+SELECT COUNT(*) AS blind_sessions,
+       SUM(never_got_data) AS answered_without_the_data,
+       ROUND(100.0*SUM(never_got_data)/COUNT(*),1) AS pct_never_recovered
+FROM (
+  SELECT trace_id,
+         MAX(CASE WHEN had_fail=1 AND had_ok=0 THEN 1 ELSE 0 END) AS never_got_data
+  FROM per_tool GROUP BY trace_id
+  HAVING MAX(had_fail)=1
+)
+```
+
+`order-support-agent`:
+
+| blind_sessions | answered_without_the_data | pct_never_recovered |
+|---|---|---|
+| 10198 | 1461 | 14.3 |
+
+_1 row(s)_
+
+`delivery-routing-agent`:
+
+| blind_sessions | answered_without_the_data | pct_never_recovered |
+|---|---|---|
+| 4439 | 595 | 13.4 |
+
+_1 row(s)_
+
+### The per-day figures used on the deck
+
+Divide by the 90-day window. One conversation is one trace.
+
+| | 90 days | per day |
+|---|---|---|
+| Customer asks, no straight answer (Order Support) | 10,198 | 113 |
+| of which the agent retried and got there | 8,737 | 97 |
+| of which the tool never returned | 1,461 | 16 |
+| Dispatcher asks, no straight answer (Delivery Routing) | 4,439 | 49 |
+| of which the agent retried and got there | 3,844 | 43 |
+| of which the tool never returned | 595 | 7 |
+| **Both audiences, no straight answer** | **14,637** | **163** |
+| **Both audiences, answered without the data** | **2,056** | **23** |
+
+The recorded A/B run in `05_agent_ab_run.md` is one of the 595: the page-2 call was rejected, the
+agent never retried it, and `D-4410315, 18 minutes late` never reached the dispatcher.

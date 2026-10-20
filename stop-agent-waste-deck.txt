@@ -80,32 +80,40 @@ Merchant Onboarding Agent
 ## Slide 3
 
 What was observed
-163 questions a day come back without a straight answer. Two different people are asking, neither is told that anything failed, and the tool call that broke returned HTTP 200.
+163 questions a day come back without a straight answer, and 23 of those are answered from data the agent never got. Two different people are asking; neither is told that anything failed.
 THE CUSTOMER ASKS  —  “where is my order?”
 113 a day
-10,198 of 93,254 Order Support sessions (10.9%) hit a tool call that failed silently. The customer waits 2.4x longer for an answer, or is told something that is not true.
+10,198 Order Support conversations of 93,254, over 90 days  =  10.9%
+85.7%
+retried and got there in the end — 8,737 conversations, 97 a day. The customer simply waited: 8.6s → 20.6s.
+14.3%
+the tool never returned at all, so the agent answered from incomplete data — 1,461 conversations, 16 a day.
 THE DISPATCHER ASKS  —  “which of this courier’s runs are late?”
 49 a day
-4,439 of 55,723 Delivery Routing sessions (8.0%). In the recorded run the agent reported no late deliveries while D-4410315 was 18 minutes late, and nobody was told.
+4,439 Delivery Routing conversations of 55,723, over 90 days  =  8.0%
+86.6%
+retried and got there in the end — 3,844 conversations, 43 a day, after roughly twice the turns.
+13.4%
+answered without the data — 595 conversations, 7 a day. One of them: D-4410315, 18 minutes late.
 ON-TIME RATE
-163 situations a day that nobody acted on in time.
-Every blind question is a courier run or an order whose status reached no one while there was still a window to reroute, warn or comp.
-Industry context: food-delivery on-time runs 56–62%, against roughly 95% for general last-mile (npj, 2026). Tiffin operates inside that gap and this is one input to it.
-Measured: the blind questions. Tiffin’s own: how many of those reroutes would have landed.
+163 questions a day arrive too late to act on, 23 of them answered wrongly.
+Every one is a courier run or an order whose status reached nobody while there was still a window to reroute, warn or comp.
+Industry context: food-delivery on-time runs 56–62%, against roughly 95% for general last-mile (npj, 2026).
+Measured: the questions. Tiffin’s own: how many of those reroutes would have landed.
 ORDER ACCURACY
-The agent does not answer slowly. It answers wrongly.
-GUARD OFF  —  “no late deliveries found”, while D-4410315 was 18 minutes late. The page-2 call was rejected and never retried, so the agent answered from half the data.
-GUARD ON  —  the malformed argument was coerced from the server’s own declared schema, page 2 came back, and the late delivery surfaced.
-Fully measured. No assumption anywhere in this tile.
+23 a day answered from data the agent never received — 14.3% of blind conversations.
+GUARD OFF  —  “no late deliveries found”, while D-4410315 was 18 minutes late. The page-2 call was rejected and never retried.
+GUARD ON  —  the argument was coerced from the server’s declared schema, page 2 returned, the late delivery surfaced.
+Fully measured. No assumption in this tile.
 CUSTOMER SATISFACTION AND CHURN
 The driver is measured. The score is Tiffin’s own.
-Measured driver: the wait doubles, 8.6s to 20.6s, or the answer is wrong. For a customer asking where their order is, that is the whole experience.
+140 customers and dispatchers a day wait 2.4x longer; 23 a day are told something that is not true.
 Churn, published rate: 16% of shoppers abandon after a single bad delivery experience, 35% after a late one (Bringg 2026 Delivery Experience Study).
 We state the driver we measured, not a satisfaction score we did not.
 WHY IT HAPPENS
 A broken MCP tool contract is rejected by the server but comes back HTTP 200, so the agent retries blind. Turns 3.82 → 7.47.  Median wait 8.6s → 20.6s.  Cost per question $0.46 → $1.24, of which $1.14 buys nothing.  Nothing alerts.
-Measured across 2.6M Gateway OTel spans · 243,112 sessions · 90 days · 6 production agents. Session, wait, turn and cost figures are committed query results in evidence/09_delivery_operations_impact.md and evidence/05_agent_ab_run.md.
-What is measured, and what is not: the blind-question counts, the waits, the turns, the costs and the wrong answer above are all derived from the trace corpus. On-time rate and CSAT are Tiffin’s own operating metrics — this slide supplies the input to them and a published rate for churn, not a replacement for the operator’s own coefficient.
+Every count above is a committed query result over 2.6M Gateway OTel spans · 243,112 sessions · 90 days · 6 production agents. The per-agent counts, the recovered and never-recovered split and this per-day arithmetic are all committed in evidence/09_delivery_operations_impact.md; the recorded run is evidence/05_agent_ab_run.md. One conversation = one trace, and “per day” is the 90-day count divided by 90.
+“Answered without the data” means the conversation ended without that tool ever returning successfully. On-time rate and CSAT are Tiffin’s own operating metrics — this slide supplies the measured input to them and a published rate for churn, not a replacement for the operator’s own coefficient.
 
 ## Slide 4
 
@@ -113,15 +121,15 @@ How this was built
 ①  THE WORKFLOW  —  none of it was built in parallel, because each stage exposed a fault in the one before it
 Generate the
 trace corpus
-Lakeflow
+2. Lakeflow
 pipeline
-Train +
+3. Train +
 evaluate
-Serve the
+4. Serve the
 model
-Wrap an agent
+5. Wrap an agent
 around it
-Add the
+6. Add the
 audit trail
 The pipeline revealed that the generator's retry signature was wrong.    Training revealed that the pipeline's labels were separable for the wrong reason.    The agent revealed that the model's three-way verdict only had two behaviours behind it.
 The loop that actually ran, dozens of times a day: make a change, run it as a real job, read the output, write the output into evidence/. Anything not verified by output was treated as not done.
