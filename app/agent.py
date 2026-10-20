@@ -20,6 +20,7 @@ THE STORY
 """
 import json
 import os
+import time
 from typing import Callable
 
 import requests
@@ -233,8 +234,14 @@ def llm_turn(messages):
 
 
 # ---------------------------------------------------------------- the loop
-def run_agent(request: str, guard_on: bool, emit: Callable[[dict], None]) -> dict:
-    """Drive the agent. `emit` receives one event dict per step so any UI can render it."""
+def run_agent(request: str, guard_on: bool, emit: Callable[[dict], None],
+              logger=None) -> dict:
+    """Drive the agent. `emit` receives one event dict per step so any UI can render it.
+
+    `logger` is optional and duck-typed: anything exposing new_run_id(), log_decision()
+    and log_outcome() will do. Passing None disables the audit trail, which keeps this
+    module free of any storage dependency and lets the tests run without one.
+    """
     messages = [
         {"role": "system", "content":
             "You are Tiffin's delivery routing agent. Use the tools to answer the "
@@ -244,6 +251,7 @@ def run_agent(request: str, guard_on: bool, emit: Callable[[dict], None]) -> dic
     ]
     tokens = 0
     seq: dict = {}
+    run_id = logger.new_run_id() if logger else None
     answered = False
     turns_used = 0
     # `answered` only means the agent emitted a final message. It says nothing about whether
@@ -278,27 +286,54 @@ def run_agent(request: str, guard_on: bool, emit: Callable[[dict], None]) -> dic
             seq[fn] = seq.get(fn, 0) + 1
             emit({"type": "proposed", "tool": fn, "args": args})
 
+            decision_id = None
             if guard_on:
+                args_before = dict(args)
                 try:
+                    t0 = time.time()
                     pred = score_call(fn, args, turn, tokens, seq[fn])
+                    guard_ms = int((time.time() - t0) * 1000)
                     emit({"type": "guard", "pred": pred})
+                    note = None
                     if pred.get("action") == "coerce":
                         args, note = apply_coercion(args, pred)
                         if note:
                             emit({"type": "coerced", "note": note, "args": args})
+                    if logger:
+                        # Phase 1: the verdict, plus what the wrapper actually did with it.
+                        # `coercion_applied` is the honest bit: "coerce" is a recommendation,
+                        # and apply_coercion declines when the named parameter is absent.
+                        decision_id = logger.log_decision(
+                            run_id=run_id, agent_id=AGENT_ID,
+                            tool_server=TOOL_SERVER[fn], tool_name=fn, turn_index=turn,
+                            pred=pred, args_before=args_before, args_after=dict(args),
+                            coercion_applied=bool(note), guard_latency_ms=guard_ms)
                 except Exception as e:  # noqa: BLE001
                     # FAIL OPEN: a guard that takes the agent offline is worse than the waste.
                     emit({"type": "guard_error", "error": str(e)})
+                    if logger:
+                        # No request reached the endpoint, so this event exists nowhere
+                        # else. It is the row most worth having.
+                        decision_id = logger.log_decision(
+                            run_id=run_id, agent_id=AGENT_ID,
+                            tool_server=TOOL_SERVER[fn], tool_name=fn, turn_index=turn,
+                            pred={}, args_before=args_before, args_after=dict(args),
+                            coercion_applied=False, guard_latency_ms=None,
+                            guard_error=str(e)[:500])
 
             ok, result = run_tool(fn, args)
             if ok and isinstance(result, dict):
                 for d in (result.get("deliveries") or []):
                     if (d.get("minutes_late") or 0) > 0:
                         found_late = True
+            if logger and decision_id is not None:
+                # Phase 2: whether the call that verdict described actually worked.
+                logger.log_outcome(decision_id, ok)
             emit({"type": "result", "ok": ok, "result": result})
             messages.append({"role": "tool", "tool_call_id": call["id"],
                              "content": json.dumps(result) if isinstance(result, dict) else str(result)})
 
     return {"turns": turns_used, "tokens": tokens, "answered": answered,
+            "run_id": run_id,
             "found_late": found_late,
             "guard_on": guard_on}

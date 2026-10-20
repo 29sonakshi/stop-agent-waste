@@ -27,6 +27,7 @@ flowchart LR
   L["<b>1.3M labelled calls</b><br/>no human labelling"]:::pipe
   T["<b>MLflow</b><br/>LOFO AUC 0.825<br/>vs 0.604 rules"]:::ml
   S["<b>Model Serving</b><br/>coerce · allow<br/>p50 0.3s"]:::serve
+  B["<b>Lakebase</b><br/>verdict log<br/>+ outcome"]:::pg
   N["<b>Genie</b><br/>NL analytics"]:::pg
   W["<b>Databricks App</b><br/>live agent loop"]:::lake
 
@@ -34,6 +35,7 @@ flowchart LR
   S -->|"verdict BEFORE dispatch"| A
   P --> N
   S --> W
+  S --> B
 ```
 
 The arrow back from Model Serving to the agents is the point of the project. Everything else in

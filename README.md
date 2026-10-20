@@ -86,13 +86,14 @@ medallion detail showing where the labelling actually happens.
 | **Lakeflow** | Spark Declarative Pipeline, 8 SQL files, bronze streaming tables through silver to gold materialized views, 15 tables | [`pipeline/`](pipeline/) |
 | **Unity Catalog** | `main.tiffin_agent_waste` governs raw spans, every pipeline table, the model, lineage, and billing attribution | [`evidence/04`](evidence/04_unity_catalog_governance.md) |
 | **ML** | MLflow `HistGradientBoostingClassifier`, custom PyFunc, registered to UC, behind Model Serving | [`notebooks/09`](notebooks/09_train_model.py), [`evidence/07`](evidence/07_model_metrics.md) |
+| **Lakebase** | Postgres `tiffin.guard_decisions`: every guard verdict appended at dispatch, then updated with the outcome. Two-phase write, point-read by `run_id` | [`notebooks/11`](notebooks/11_lakebase_verdict_log.py), [`evidence/08`](evidence/08_lakebase_verdict_log.md) |
 | **Genie** | Genie space over the gold tables for natural-language analysis of waste | [space](https://e2-dogfood.staging.cloud.databricks.com/genie/rooms/01f1c816b3e4161f9560d92ae0fc4ab4) |
 | **Databricks App** | Streamlit. Runs the live agent loop with the guard inline, turn by turn | [`app/`](app/) |
 
 **It is one journey, not a set of demos.** The app's guard calls the served model. The served
 model was trained on labels the pipeline produced. The pipeline reads the spans the agents emit.
-Genie reads the same governed gold tables. Remove any stage and the next one has nothing to stand
-on.
+Every verdict the guard returns is appended to Lakebase and updated with the outcome. Genie reads
+the same governed gold tables. Remove any stage and the next one has nothing to stand on.
 
 ---
 
@@ -107,10 +108,10 @@ the live Claude endpoint and the live guard. Full traces in
 | | guard OFF | guard ON |
 |---|---|---|
 | turns | 6 | **3** |
-| tokens | 10,001 | **4,236** |
+| tokens | 9,899 | **4,344** |
 | **found the late delivery** | **no** | **yes** |
 
-The guarded run used 5,765 fewer tokens, but the last row is the headline. Unguarded, the agent
+The guarded run used 5,555 fewer tokens, but the last row is the headline. Unguarded, the agent
 retried the same malformed token and never reached page 2. Guarded, it got `coerce p=0.8919`,
 rewrote the token from the server's own declared schema, and answered correctly on the first
 attempt: **D-4410315, 18 minutes late**.
@@ -163,6 +164,7 @@ per prevented failure.
 | [`docs/demo-walkthrough.md`](docs/demo-walkthrough.md) | Screenshots of the same comparison in the running app |
 | [`06_guard_endpoint.md`](evidence/06_guard_endpoint.md) | Six live endpoint calls showing coerce and allow, with latency |
 | [`07_model_metrics.md`](evidence/07_model_metrics.md) | MLflow metrics pulled live, including the weak fold |
+| [`08_lakebase_verdict_log.md`](evidence/08_lakebase_verdict_log.md) | The Postgres audit trail: two-phase write, real rows, aggregate |
 
 ---
 
@@ -191,6 +193,14 @@ a random split. That was a red flag rather than a win: rows from one bug family 
 near-duplicates, so a random split lets the model memorise the bug it is then graded on. LOFO is a
 harsher and more honest test, and it is the number quoted everywhere here.
 
+**Lakebase records what the model could not.** Model Serving can log every request and response
+automatically, and for the model's *recommendation* that is the better answer. It cannot see three
+things, and those three are why the verdict log exists: whether the wrapper really rewrote the
+argument (`coerce` is a recommendation, and `apply_coercion()` declines when the named parameter
+is absent), whether the tool call then succeeded, and fail-open events where no request was ever
+sent. The first iteration of this layer was a nine-row table copied out of Delta, which earned
+nothing and was removed. The test that matters is whether removing a component breaks a feature.
+
 **Labels come from the contract, not from humans.** 1.3M labelled calls with zero hand-labelling,
 because the MCP server's own declared `inputSchema` is the ground truth for whether a call was
 well-formed. This is the part that makes the approach portable: any team already emitting Gateway
@@ -205,7 +215,7 @@ traces can point it at their own catalog.
   No customer data is used anywhere in this repo.
 - **The MCP tool servers in the demo app are in-process Python mocks.** Five of them, in
   `app/agent.py`. They exist so the agent loop can fail realistically on demand. The pipeline,
-  model, endpoint, Genie space and app are all real.
+  model, endpoint, Lakebase verdict log, Genie space and app are all real.
 - **This guard catches malformed calls, not wrong answers.** The `get_eta` bug returns HTTP 200
   with a plausible but wrong value, seconds where minutes were asked for. The arguments are
   perfectly valid, so there is no shape tell, and that is the fold scoring 0.336. Stated here
@@ -223,8 +233,9 @@ traces can point it at their own catalog.
    front of genuine tool servers.
 3. **Batch-score the trace history** to seed the fix queue retroactively, plus SQL alerts on waste
    thresholds per owner team.
-4. **Log the guard's own verdicts and feed them back** as training data, so the model learns from
-   the calls it rewrote and the ones it let through.
+4. **Feed the verdict log back as training data.** The trail already records what the guard did
+   and whether the call then worked, which is a labelled outcome of the model's own judgment.
+   Training on it would let the model learn from its own decisions rather than only from traces.
 
 ---
 
@@ -233,9 +244,10 @@ traces can point it at their own catalog.
 ```
 notebooks/   00-04  config, synthetic trace generation, validation, de-risking
              09     model training, LOFO evaluation, UC registration
-             10     agent A/B harness (imports the shipping agent module)
+             10     agent A/B harness (imports the shipping agent module) + verdict-log readback
+             11     Lakebase verdict log: schema, grants, two-phase write self-test
 pipeline/    8 SQL files, the Lakeflow Spark Declarative Pipeline
-app/         the Databricks App: app.py (UI), agent.py (the agent loop + the guard)
+app/         the Databricks App: app.py (UI), agent.py (agent loop + guard), lakebase.py (Postgres)
 evidence/    real execution output, committed as text
 docs/        architecture diagrams as Mermaid source plus rendered PNGs
 ```
@@ -251,6 +263,9 @@ databricks pipelines start-update --pipeline-id <id> --profile <profile>
 # model training, evaluation and registration
 databricks api post /api/2.2/jobs/runs/submit --json '{"run_name":"train", "tasks":[
   {"task_key":"t","notebook_task":{"notebook_path":"<path>/09_train_model"}}]}'
+
+# Lakebase verdict log (table, grants, self-test)
+#   run notebooks/11_lakebase_verdict_log.py
 
 # the app
 databricks apps deploy tiffin-preflight-demo --source-code-path /Workspace/<path>/demo_app

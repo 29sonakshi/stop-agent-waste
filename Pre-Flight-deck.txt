@@ -157,22 +157,21 @@ Model training
 GradientBoostingClassifier
 UC Model Registry
 tool_call_risk  v1 @prod
-One model, two consumers:
-prevent, then prioritise
+One model, three consumers:
+prevent · audit · analyse
 Model Serving
 tiffin-tool-call-risk
 Scores every tool call
 BEFORE it runs
 ALLOW · COERCE 
-Genie space
-Natural-language analytics over the
-gold tables: which contract costs
-the most per failed call, which
-agents are over budget, which
-deploy introduced which bug.
-Genie writes the SQL itself.
+Lakebase Postgres
+tiffin.guard_decisions — every verdict
+appended at dispatch, then updated
+with whether the call succeeded.
+Records what an inference log cannot.
+Genie space — NL analytics over gold
 ⑥  THE LOOP — the traces these agents emit train the model that guards those same agents. The verdict comes back before the tool is ever called.
-Unity Catalog — one governance plane across all of it:  raw spans · 15 pipeline tables · model lineage · serving endpoint · Genie space
+Unity Catalog — one governance plane across all of it:  raw spans · 15 pipeline tables · model lineage · serving endpoint · Lakebase · Genie space
 6 production agents · 11 MCP tool servers
 $528K/yr spend · $109K/yr wasted (20.7%)
 ranked by wasted spend ↓
@@ -241,7 +240,7 @@ Links
 Genie Space Delivery Agent
 REAL — functional today on e2-dogfood
 Gateway OTel schema · Lakeflow pipeline (15 tables) · MLflow model + leave-one-bug-family-out eval · UC registry · Model 
-Serving endpoint · Genie space · Databricks App · AI/BI dashboard
+Serving endpoint · Lakebase verdict log · Genie space · Databricks App · AI/BI dashboard
 github.com/29sonakshi/stop-agent-waste  —  code + committed execution evidence
 MOCKED — only to make the story demoable
 Synthetic Tiffin trace corpus (2.6M spans generated from a seeded bug registry) · 5 in-process MCP tool mocks inside the demo app

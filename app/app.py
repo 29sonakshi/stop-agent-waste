@@ -9,6 +9,7 @@ import json
 import streamlit as st
 
 import agent
+import lakebase
 
 st.set_page_config(page_title="Tiffin | Delivery agent",
                    page_icon="🍱", layout="wide")
@@ -147,7 +148,8 @@ if go:
 
     with st.spinner("agent running…"):
         try:
-            summary = agent.run_agent(request, guard_on=guard_on, emit=emit)
+            summary = agent.run_agent(request, guard_on=guard_on, emit=emit,
+                                      logger=lakebase)
         except Exception as e:  # noqa: BLE001
             st.error(f"Run failed: {e}")
             summary = None
@@ -161,6 +163,28 @@ if go:
         k[3].metric("Found the late delivery",
                     "yes" if summary.get("found_late") else "no")
 
+
+        # Read the audit trail back out of Postgres for this run. A write we never
+        # read is not an audit trail, so the app shows what actually landed.
+        if summary.get("run_id"):
+            try:
+                rows = lakebase.run_summary(summary["run_id"])
+                if rows:
+                    with st.expander(f"Guard audit trail for this run "
+                                     f"({len(rows)} decision(s) in Lakebase)"):
+                        st.caption(f"run_id `{summary['run_id']}` — read back from "
+                                   f"`tiffin.guard_decisions` in Lakebase Postgres.")
+                        st.dataframe(
+                            [{"turn": r["turn_index"], "tool": r["tool_name"],
+                              "verdict": r["action"],
+                              "p(fail)": r["failure_prob"],
+                              "rewrote arg": "yes" if r["coercion_applied"] else "no",
+                              "tool succeeded": ("yes" if r["tool_ok"] else
+                                                 "no" if r["tool_ok"] is False else "-")}
+                             for r in rows],
+                            hide_index=True, use_container_width=True)
+            except Exception as e:  # noqa: BLE001
+                st.caption(f"Audit trail unavailable (Lakebase): {e}")
 
         st.session_state.setdefault("runs", {})[
             "on" if summary["guard_on"] else "off"] = summary
