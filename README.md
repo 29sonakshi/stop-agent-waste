@@ -1,20 +1,34 @@
-# Stopping silent AI-agent waste in food-delivery operations using AI Gateway OTel spans
+# The late delivery the dispatcher never saw
 
 **Tokens burned. Time lost. Nothing logged.**
 
-Tiffin is a food-delivery marketplace. Six AI agents run its operations (dispatch, order
-support, fraud, merchant onboarding, retention, menu discovery) and they do their work by
-calling eleven MCP tool servers through the Databricks AI Gateway.
+Tiffin is a food-delivery marketplace. A dispatcher asks its delivery-routing agent a question
+they ask a hundred times a day:
 
-One in five dollars of their token budget is wasted, and no dashboard at Tiffin can see it.
+> *"Which of courier CR-4172's deliveries are running late?"*
+
+They are not asking out of curiosity. They are asking so they can **act** while there is still
+time: reroute the courier, warn the customer, comp the order. That answer has a decay window.
+
+One dispatcher question in twelve runs into a broken tool contract. When it does, the answer
+takes **20.6 seconds instead of 8.6**, or never arrives at all. In the run recorded in
+[`evidence/05`](evidence/05_agent_ab_run.md), the agent never reached page 2 and never surfaced
+`D-4410315, 18 minutes late`. The courier stayed late and nobody was told.
+
+Nothing alerts, because the tool call that failed returned **HTTP 200**.
 
 | | |
 |---|---|
 | **Industry** | Food delivery and on-demand logistics |
-| **Problem** | MCP tool calls that fail while returning HTTP 200, so agents retry blindly and burn tokens |
-| **Measured impact** | **$109,418/yr 💸 wasted** out of **$528,421/yr 💸** agent spend, which is **20.7%** |
-| **Target users** | The platform team that owns the agent budget, and the tool-server owners who get a money-ranked fix queue |
+| **Problem** | MCP tool calls fail while returning HTTP 200, so the agent retries blindly and the dispatcher's intervention window closes |
+| **Operational impact** | **1 dispatcher question in 12** affected; median wait **8.6 s → 20.6 s**; cost per session **$0.46 💸 → $1.24 💸** |
+| **Platform impact** | **$109,418/yr 💸 wasted** of **$528,421/yr 💸** agent spend, which is **20.7%** |
+| **Who owns the outcome** | **Head of Delivery Operations** (on-time rate, cost per order). Secondary: the platform team that owns the agent budget, and tool-server owners who get a money-ranked fix queue |
 | **What it does** | Scores every tool call *before dispatch* and returns `coerce` or `allow` in ~0.3 s |
+
+Operational figures are derived in [`evidence/09`](evidence/09_delivery_operations_impact.md).
+The step from a missed intervention window to an on-time-delivery percentage needs the operator's
+own data and is **not** claimed here.
 
 Every number above is computed from trace data in Unity Catalog, not estimated. The queries that
 produce them are in [`evidence/`](evidence/) with their real output committed.
@@ -134,6 +148,19 @@ to flag something it has never seen.
 | Error-log baseline | **0.000**, because there are no errors to key on |
 | Worst single fold | **0.336**, below random. See limitations |
 
+### What it costs the delivery operation
+
+| | clean session | hit a silent failure |
+|---|---|---|
+| share of dispatcher sessions | 92% | **8%, or 1 in 12** |
+| turns | 3.82 | **7.47** |
+| **median dispatcher wait** | **8.6 s** | **20.6 s** |
+| cost per session | $0.46 💸 | **$1.24 💸** |
+
+Per-turn LLM latency is drawn from the same distribution for both cohorts, so the wait-time gap
+is purely the extra turns rather than anything built into the data. Full queries in
+[`evidence/09`](evidence/09_delivery_operations_impact.md).
+
 ### Prioritisation: fix by money, not by count
 
 Cost per failed call varies **102x** across tools. Ranking by error count puts
@@ -165,8 +192,57 @@ per prevented failure.
 | [`06_guard_endpoint.md`](evidence/06_guard_endpoint.md) | Six live endpoint calls showing coerce and allow, with latency |
 | [`07_model_metrics.md`](evidence/07_model_metrics.md) | MLflow metrics pulled live, including the weak fold |
 | [`08_lakebase_verdict_log.md`](evidence/08_lakebase_verdict_log.md) | The Postgres audit trail: two-phase write, real rows, aggregate |
+| [`09_delivery_operations_impact.md`](evidence/09_delivery_operations_impact.md) | What it costs the delivery operation: 1 in 12 sessions, 8.6 s → 20.6 s |
 
 ---
+
+## How this was built
+
+Roughly 20 hours over six days, on a dogfood workspace, built conversationally with
+**Claude Code** driving the Databricks CLI, the SQL Statement API, the Jobs API and the Google
+Slides API directly. Nothing here was generated in one pass; the order mattered and several
+things had to be thrown away.
+
+**The sequence.** Generate a synthetic trace corpus that imitates the real AI Gateway OTel schema
+→ build the Lakeflow pipeline against it → discover the labels were wrong and fix the generator →
+train and evaluate → serve → wrap an agent around the endpoint → add the audit trail. Each stage
+exposed a problem in the one before it, which is why they were not built in parallel.
+
+**Where the AI was a genuine force multiplier**
+
+- *Throwaway verification.* Dozens of one-off probes to answer "does this actually work": does
+  `variant_get` resolve a dotted OTel key, does `serving-endpoints query` forward a `tools`
+  payload, does the app's service principal exist as a Postgres role yet. Each is a two-minute
+  script that would not be worth writing by hand, and each caught a wrong assumption early.
+- *Volume with discipline.* 2.6M spans and 15 pipeline tables are only tractable if every claim
+  is re-queried rather than remembered. Every figure in `evidence/` is a committed query result
+  for that reason.
+- *Adversarial review of my own results.* The most valuable use was asking it to attack a number
+  I liked. The model scoring near 1.0 on a random split was treated as a red flag rather than a
+  win, which is what led to the leave-one-bug-family-out protocol.
+- *Slides as code.* The architecture diagram is built through the Slides API from a script, so a
+  layout change is a diff rather than an afternoon of dragging boxes.
+
+**Where it got things wrong, and what that cost**
+
+- *It built to the checklist.* The first Lakebase layer was a nine-row table copied out of Delta
+  to satisfy a requirement. It was removed, and the second attempt was scoped against what Model
+  Serving inference logs already capture, which is the version that earned its place.
+- *It over-trusted its own synthetic data.* A correlation between tool failures and escalation
+  rate was presented to me as a finding before anyone checked the generator, where that
+  correlation had been hand-written. It is now labelled an assumption wherever it appears, and
+  the operational numbers used in the business case are restricted to derived ones.
+- *Silent failures in the tooling.* `variant_get` with a dotted path returned all-NULL while the
+  pipeline reported success; a `# MAGIC %md` cell swallowed the code beneath it and failed three
+  cells later with an unrelated `NameError`. Both were found by checking output rather than
+  trusting a green status, which became the habit the `evidence/` directory exists to enforce.
+- *It needed to be told to stop.* Left alone it kept adding surface area. The fix queue, a second
+  app tab, and a third verdict that had no behaviour behind it were all built and then cut.
+
+**The judgment that stayed human.** What problem was worth solving, that a verdict with no
+distinct behaviour should not be called a verdict, that a guard which can take the agents offline
+is worse than the waste it prevents, and that a component which can be removed without breaking a
+feature is decoration. Those decisions are argued in the code comments and in the notebooks.
 
 ## Decisions and trade-offs
 
@@ -207,6 +283,19 @@ well-formed. This is the part that makes the approach portable: any team already
 traces can point it at their own catalog.
 
 ---
+
+## Why this matters beyond the first $109K
+
+Recovering the current waste is the smaller half of the argument. Tiffin runs six agents today
+and is adding more, and every new agent multiplies the same exposure: more tool servers, more
+contracts that can drift out of sync with the arguments agents send, and no way to see it happen
+because none of it raises an error.
+
+The reusable part is not the model, it is the method. Any team already emitting AI Gateway traces
+has the arguments sent and the schema declared sitting in the same span, so the labels come free
+and the same guard can sit in front of any agent. That turns agent reliability from something each
+team discovers the expensive way into a platform capability with a budget, an owner and an audit
+trail, which is what has to exist before an operations team will let an agent act on its own.
 
 ## Known limitations
 
